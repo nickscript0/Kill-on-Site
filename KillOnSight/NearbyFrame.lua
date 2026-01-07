@@ -504,6 +504,7 @@ local function ShowMenuFor(self, e)
   EasyMenu(menu, self.menu, "cursor", 0, 0, "MENU")
 end
 
+
 local function UpdateScroll(self)
   local list = SortedEntries(self)
   local total = #list
@@ -515,85 +516,81 @@ local function UpdateScroll(self)
     self.countFS:SetText(("Nearby: %d"):format(total))
   end
 
-  for i=1,visible do
+  for i = 1, visible do
     local idx = offset + i
     local row = self.rows[i]
     local e = list[idx]
     row.entry = e
+
     if e then
       -- Secure targeting: only set while out of combat (protected in combat).
-      if row.SetAttribute then
-        if InCombatLockdown and InCombatLockdown() then
-          -- leave previous macrotext1 as-is
-        else
-          row:SetAttribute("type1", "macro")
-          row:SetAttribute("macrotext1", "/targetexact " .. (e.name or ""))
-        end
+      if row.SetAttribute and (not (InCombatLockdown and InCombatLockdown())) then
+        row:SetAttribute("type1", "macro")
+        row:SetAttribute("macrotext1", "/targetexact " .. (e.name or ""))
       end
 
+      row.text:SetText(RowLabel(e, tNow))
 
-row.text:SetText(RowLabel(e, tNow))
+      local DB = GetDB()
+      local prof = DB and DB:GetProfile()
 
-local DB = GetDB()
-local prof = DB and DB:GetProfile()
+      -- Row icons (class + skull for KoS/Guild)
+      if prof and prof.nearbyRowIcons ~= false and row.icon then
+        if e.class and CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[e.class] then
+          row.icon:SetTexture("Interface\\GLUES\\CHARACTERCREATE\\UI-CHARACTERCREATE-CLASSES")
+          local c = CLASS_ICON_TCOORDS[e.class]
+          row.icon:SetTexCoord(c[1], c[2], c[3], c[4])
+          row.icon:Show()
+        else
+          row.icon:Hide()
+        end
+        if row.skull then
+          row.skull:SetShown(e.kosType == L.KOS or e.kosType == L.GUILD_KOS)
+        end
+      else
+        if row.icon then row.icon:Hide() end
+        if row.skull then row.skull:Hide() end
+      end
 
--- row icons (class + skull for KoS)
-if prof and prof.nearbyRowIcons ~= false and row.icon then
-  if e.class and CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[e.class] then
-    row.icon:SetTexture("Interface\\GLUES\\CHARACTERCREATE\\UI-CHARACTERCREATE-CLASSES")
-    local c = CLASS_ICON_TCOORDS[e.class]
-    row.icon:SetTexCoord(c[1], c[2], c[3], c[4])
-    row.icon:Show()
-  else
-    row.icon:Hide()
-  end
-  if row.skull then
-    row.skull:SetShown(e.kosType == L.KOS)
-  end
-else
-  if row.icon then row.icon:Hide() end
-  if row.skull then row.skull:Hide() end
-end
-
-
--- Clear rows beyond the visible count so old names don't linger when the list shrinks
-for i = visible + 1, #self.rows do
-  local row = self.rows[i]
-  if row then
-    row.entry = nil
-    row.text:SetText("")
-    row:SetAlpha(0)
-    SafeEnableMouse(row, false)
-    if row.icon then row.icon:Hide() end
-    if row.skull then row.skull:Hide() end
-  end
-end
-
--- Row alpha: dim inactive entries
-if e.state == "inactive" then
-  row:SetAlpha(0.60)
-else
-  row:SetAlpha(1)
-end
+      -- Row alpha: dim inactive entries
+      if e.state == "inactive" then
+        row:SetAlpha(0.60)
+      else
+        row:SetAlpha(1)
+      end
 
       SafeEnableMouse(row, true)
       -- rows are created shown; do not call :Show() (protected)
     else
+      -- Clear unused row
       row.text:SetText("")
-      row:SetAlpha(1)
-      if row.icon then row.icon:Hide() end
-      if row.skull then row.skull:Hide() end
-      if row.SetAttribute then
-        if InCombatLockdown and InCombatLockdown() then
-          -- do nothing in combat
-        else
-          row:SetAttribute("macrotext1", nil)
-          row:SetAttribute("type1", nil)
-        end
-      end
+      row.entry = nil
       row:SetAlpha(0)
       SafeEnableMouse(row, false)
+      if row.icon then row.icon:Hide() end
+      if row.skull then row.skull:Hide() end
+      if row.SetAttribute and (not (InCombatLockdown and InCombatLockdown())) then
+        row:SetAttribute("macrotext1", nil)
+        row:SetAttribute("type1", nil)
+      end
       -- do not call :Hide() (protected)
+    end
+  end
+
+  -- Clear rows beyond the visible count so old names don't linger when the list shrinks
+  for i = visible + 1, #self.rows do
+    local row = self.rows[i]
+    if row then
+      row.entry = nil
+      row.text:SetText("")
+      row:SetAlpha(0)
+      SafeEnableMouse(row, false)
+      if row.icon then row.icon:Hide() end
+      if row.skull then row.skull:Hide() end
+      if row.SetAttribute and (not (InCombatLockdown and InCombatLockdown())) then
+        row:SetAttribute("type1", nil)
+        row:SetAttribute("macrotext1", nil)
+      end
     end
   end
 
