@@ -1,8 +1,8 @@
-## Interface: 11508
+## Interface: 110207
 ## Title: Kill on Sight
 ## Notes: Kill on Sight notifier and tracking addon (Classic)
 ## Author: Milestorme
-## Version: 2.8.7
+## Version: 2.8.8
 ## SavedVariables: KillOnSightDB
 
 Libs\LibStub\LibStub.lua

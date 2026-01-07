@@ -10,7 +10,7 @@ local Sync = {}
 local SYNC_COOLDOWN = 60
 local nextSyncAllowedAt = 0
 local PREFIX = "KOS2"
-local ADDON_VER = "2.8.7"
+local ADDON_VER = "2.8.8"
 
 local peers = {} -- [sender] = { theirRev=0, theirSeq=0, lastHelloAt=0 }
 

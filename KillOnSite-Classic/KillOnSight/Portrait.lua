@@ -128,14 +128,39 @@ local function Update()
     return
   end
 
-  if IsKoSTarget() then
-    ApplyBorder("rare")
-  elseif IsGuildKoSTarget() then
-    ApplyBorder("elite")
+  -- IMPORTANT:
+  -- Do not override Blizzard's own elite/rare/boss classification visuals for NPCs.
+  -- We only apply custom borders for PLAYER targets that are KoS or Guild KoS.
+  if not UnitExists("target") then
+    if TargetFrame_CheckClassification then TargetFrame_CheckClassification(TargetFrame) end
+    return
+  end
+
+  if UnitIsPlayer("target") then
+    if IsKoSTarget() then
+      ApplyBorder("rare")
+      return
+    elseif IsGuildKoSTarget() then
+      ApplyBorder("elite")
+      return
+    end
+    -- Non-KoS player: restore Blizzard default (no dragon)
+    if TargetFrame_CheckClassification then
+      TargetFrame_CheckClassification(TargetFrame)
+    else
+      ApplyBorder("none")
+    end
+    return
+  end
+
+  -- NPC target: always restore Blizzard default classification (elite/rare/boss dragon etc.)
+  if TargetFrame_CheckClassification then
+    TargetFrame_CheckClassification(TargetFrame)
   else
     ApplyBorder("none")
   end
 end
+
 
 f:RegisterEvent("PLAYER_LOGIN")
 f:RegisterEvent("PLAYER_ENTERING_WORLD")
