@@ -79,5 +79,4 @@ Designed for PvP awareness, Classic and Retail compatible, and optimized for per
 ---
 
 ## Installation
-1. Download the addon
-2. Extract the `KillOnSight` folder into: C:\Program Files (x86)\World of Warcraft\_classic_era_\Interface\AddOns
+https://www.curseforge.com/wow/addons/kill-on-sight
