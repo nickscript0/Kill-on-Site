@@ -6,6 +6,40 @@ local DB = KillOnSight_DB
 local Notifier = {}
 
 
+
+
+
+-- Additional anti-spam for KoS / Guild alerts across all detection sources.
+-- Prevents duplicate warnings when multiple systems detect the same player close together.
+Notifier._lastKosAlertAt = Notifier._lastKosAlertAt or {}
+
+local function ShouldAlertOnce(key, cooldownSeconds)
+  local now = GetTime()
+  local last = Notifier._lastKosAlertAt[key]
+  if last and (now - last) < cooldownSeconds then
+    return false
+  end
+  Notifier._lastKosAlertAt[key] = now
+  return true
+end
+
+local function ClassHex(classFile)
+  if not classFile or not RAID_CLASS_COLORS or not RAID_CLASS_COLORS[classFile] then
+    return nil
+  end
+  local c = RAID_CLASS_COLORS[classFile]
+  local r = math.floor((c.r or 1) * 255 + 0.5)
+  local g = math.floor((c.g or 1) * 255 + 0.5)
+  local b = math.floor((c.b or 1) * 255 + 0.5)
+  return string.format("|cff%02x%02x%02x", r, g, b)
+end
+
+local function ColorizeName(name, classFile)
+  local hex = ClassHex(classFile)
+  if not hex then return name end
+  return hex .. name .. "|r"
+end
+
 function Notifier:GetStealthTiming()
   local prof = DB:GetProfile()
   local hold = tonumber(prof.stealthWarningHoldSeconds) or 6.0
@@ -136,6 +170,14 @@ end
 
 function Notifier:NotifyPlayer(listType, name, reason)
   local suffix = reason and (" - "..reason) or ""
+
+-- Anti-spam: suppress repeated alerts for the same KoS/Guild target
+local prof = DB:GetProfile()
+local cd = tonumber(prof.kosAlertCooldownSeconds) or 30
+local k = ("p:" .. tostring(name or ""):lower())
+if cd > 0 and not ShouldAlertOnce(k, cd) then
+  return
+end
   self:Chat(string.format(L.SEEN, listType, name, suffix))
   self:Sound()
   self:Flash()
@@ -150,6 +192,14 @@ end
 
 function Notifier:NotifyGuild(listType, name, guild, reason)
   local suffix = reason and (" - "..reason) or ""
+
+-- Anti-spam: suppress repeated alerts for the same guild KoS target
+local prof = DB:GetProfile()
+local cd = tonumber(prof.guildAlertCooldownSeconds) or 30
+local k = ("g:" .. tostring(guild or ""):lower() .. ":" .. tostring(name or ""):lower())
+if cd > 0 and not ShouldAlertOnce(k, cd) then
+  return
+end
   self:Chat(string.format(L.SEEN_GUILD, listType, name, guild, suffix))
   self:Sound()
   self:Flash()
@@ -246,7 +296,7 @@ function Notifier:CenterWarning(msg)
     return
   end
 end
-function Notifier:NotifyHidden(name, spellName)
+function Notifier:NotifyHidden(name, spellName, guid)
   local prof = DB:GetProfile()
 
   -- Master stealth toggle (live)
@@ -254,14 +304,21 @@ function Notifier:NotifyHidden(name, spellName)
     return
   end
 
+  local classFile
+  if guid and GetPlayerInfoByGUID then
+    local _, cls = GetPlayerInfoByGUID(guid)
+    classFile = cls
+  end
+
+  local coloredName = ColorizeName(name, classFile)
   local label = spellName and (spellName .. ": ") or ""
 
   -- Chat output (Chat() respects printToChat)
-  self:Chat(string.format(L.SEEN_HIDDEN, label .. name))
+  self:Chat(string.format(L.SEEN_HIDDEN, label .. coloredName))
 
   -- Center warning banner
   if prof.stealthDetectCenterWarning ~= false then
-    self:CenterWarning(string.format(L.SEEN_HIDDEN, label .. name))
+    self:CenterWarning(string.format(L.SEEN_HIDDEN, label .. coloredName))
   end
 
   -- Stealth sound
@@ -274,10 +331,10 @@ function Notifier:NotifyHidden(name, spellName)
 
   self:Flash()
 
-  -- Add to Nearby list
+  -- Add to Nearby list (pass class so row can be colored/iconed)
   if prof.stealthDetectAddToNearby ~= false then
     if _G.KillOnSight_Nearby and _G.KillOnSight_Nearby.Seen then
-      _G.KillOnSight_Nearby:Seen(name, nil, nil, L.HIDDEN, nil)
+      _G.KillOnSight_Nearby:Seen(name, classFile, nil, L.HIDDEN, nil)
     end
   end
 end
