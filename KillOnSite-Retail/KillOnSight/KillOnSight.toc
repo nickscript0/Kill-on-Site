@@ -2,7 +2,7 @@
 ## Title: Kill on Sight
 ## Notes: Kill on Sight notifier and tracking addon (Classic)
 ## Author: Milestorme
-## Version: 2.9.0
+## Version: 2.9.1
 ## SavedVariables: KillOnSightDB
 
 Libs\LibStub\LibStub.lua

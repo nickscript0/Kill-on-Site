@@ -584,18 +584,25 @@ local pPlayers = CreateFrame("Frame", nil, frame)
     {key="guild", title=L.UI_GUILD, width=170},
     {key="zone", title=L.UI_ZONE, width=220},
   })
-  atkList:SetPoint("TOPLEFT", 0, -10)
-  atkList:SetPoint("BOTTOMRIGHT", 0, -36)
+  -- Top action bar (keeps buttons accessible even when the list is long)
+  local atkBar = CreateFrame("Frame", nil, pAtk)
+  atkBar:SetPoint("TOPLEFT", 0, 0)
+  atkBar:SetPoint("TOPRIGHT", 0, 0)
+  atkBar:SetHeight(28)
+
+  -- List sits below the bar
+  atkList:SetPoint("TOPLEFT", 0, -34)
+  atkList:SetPoint("BOTTOMRIGHT", 0, 0)
   pAtk._list = atkList
 
-  local btnClearAtk = MakeButton(pAtk, L.UI_CLEAR, 80, 22)
-  btnClearAtk:SetPoint("BOTTOMRIGHT", -10, 6)
+  local btnClearAtk = MakeButton(atkBar, L.UI_CLEAR, 80, 22)
+  btnClearAtk:SetPoint("TOPRIGHT", -10, -3)
   btnClearAtk:SetScript("OnClick", function()
     DB:ClearLastAttackers()
     GUI:RefreshAll()
   end)
 
-  local btnAddAtk = MakeButton(pAtk, L.UI_ADD_KOS, 90, 22)
+  local btnAddAtk = MakeButton(atkBar, L.UI_ADD_KOS, 90, 22)
   btnAddAtk:SetPoint("RIGHT", btnClearAtk, "LEFT", -6, 0)
   btnAddAtk:SetScript("OnClick", function()
     local key = atkList.selectedKey
@@ -608,6 +615,26 @@ local pPlayers = CreateFrame("Frame", nil, frame)
     if not name or name == "" then return end
     if DB:HasPlayer(name) then return end
     DB:AddPlayer(name, L.KOS, nil, UnitName("player"))
+    GUI:RefreshAll()
+  end)
+
+
+  local btnAddGuildAtk = MakeButton(atkBar, (L.UI_ADD_GUILD or "Add Guild"), 90, 22)
+  btnAddGuildAtk:SetPoint("RIGHT", btnAddAtk, "LEFT", -6, 0)
+  btnAddGuildAtk:SetScript("OnClick", function()
+    local key = atkList.selectedKey
+    if not key or key == "" then return end
+    local list = DB:GetLastAttackers()
+    local guild
+    for _,e in ipairs(list) do
+      if e.name and e.name:lower() == key then
+        guild = e.guild
+        break
+      end
+    end
+    if not guild or guild == "" then return end
+    if DB:HasGuild(guild) then return end
+    DB:AddGuild(guild, L.GUILD_KOS, nil, UnitName("player"))
     GUI:RefreshAll()
   end)
 

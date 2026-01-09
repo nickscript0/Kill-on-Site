@@ -51,10 +51,12 @@ function Detector:CheckUnit(unit)
   if UnitIsUnit(unit, "player") then return end
 
 
+
+  local guid = UnitGUID(unit)
 local name = GetUnitNameSafe(unit)
 if not name then return end
 
--- Spy-like nearby list (hostile players)
+-- Nearby list (hostile players)
 if UnitIsPlayer(unit) and UnitCanAttack("player", unit) then
   local classFile = select(2, UnitClass(unit))
   local guild = GetUnitGuild(unit)
@@ -83,11 +85,10 @@ end
     end
     return
   end
-
   local guild = GetUnitGuild(unit)
-  if guid and guild then
-    -- If this player is in the Attackers list, enrich it with guild (Spy-style: only when a unit is available)
-    if DB.UpdateLastAttackerGuildByGUID then DB:UpdateLastAttackerGuildByGUID(guid, guild) end
+  if guid and guild and DB.UpdateLastAttackerGuildByGUID then
+    -- If this player is in the Attackers list, enrich it with guild
+    DB:UpdateLastAttackerGuildByGUID(guid, guild)
   end
   if guild then
     local guildEntry = DB:LookupGuild(guild)

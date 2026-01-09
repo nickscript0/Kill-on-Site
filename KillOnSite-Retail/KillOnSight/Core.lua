@@ -31,9 +31,11 @@ local nearbyTicker
 local function StartNearbyNameplateScan()
   if nearbyTicker then return end
   if not C_NamePlate or not C_NamePlate.GetNamePlates then return end
-  nearbyTicker = C_Timer.NewTicker(1.0, function()
+  nearbyTicker = C_Timer.NewTicker(2.5, function()
     local Detector = GetDetector()
     if not Detector then return end
+    local Nearby = GetNearby()
+    if Nearby and Nearby.IsShown and (not Nearby:IsShown()) then return end
     local plates = C_NamePlate.GetNamePlates(false)
     if not plates then return end
     for _, plate in ipairs(plates) do
@@ -165,6 +167,41 @@ end
 
 local clSeenAt = {}      -- [nameLower] = GetTime()
 local clNotifyAt = {}    -- [key] = GetTime()
+
+-- Guild resolve cache (prevents expensive ResolveGuildForGuid scans on every combat log tick)
+local guildCache = {} -- [guid] = { guild = "name", t = GetTime(), lastTry = GetTime() }
+local GUILD_CACHE_TTL = 60          -- seconds to keep a resolved guild
+local GUILD_RESOLVE_TRY_COOLDOWN = 10 -- seconds between expensive resolve attempts per GUID
+
+local function GetCachedGuild(guid, now)
+  local e = guid and guildCache[guid]
+  if not e then return nil end
+  if (now - (e.t or 0)) > GUILD_CACHE_TTL then
+    guildCache[guid] = nil
+    return nil
+  end
+  return e.guild
+end
+
+local function NoteResolveTry(guid, now)
+  if not guid then return end
+  local e = guildCache[guid] or {}
+  e.lastTry = now
+  guildCache[guid] = e
+end
+
+local function CanTryResolveGuild(guid, now)
+  if not guid then return false end
+  local e = guildCache[guid]
+  if not e or not e.lastTry then return true end
+  return (now - e.lastTry) >= GUILD_RESOLVE_TRY_COOLDOWN
+end
+
+local function SetCachedGuild(guid, guild, now)
+  if not guid or not guild or guild == "" then return end
+  guildCache[guid] = { guild = guild, t = now }
+end
+
 
 local function IsFlagPlayer(flags)
   if not band then return false end
@@ -402,7 +439,18 @@ local function HandleCombatLog()
     return
   end
 
-  local guildName = ResolveGuildForGuid(srcName, srcGUID) or ""
+  local guildName = ""
+  if srcGUID then
+    guildName = GetCachedGuild(srcGUID, now) or ""
+    if guildName == "" and CanTryResolveGuild(srcGUID, now) then
+      NoteResolveTry(srcGUID, now)
+      local resolved = ResolveGuildForGuid(srcName, srcGUID)
+      if resolved and resolved ~= "" then
+        guildName = resolved
+        SetCachedGuild(srcGUID, resolved, now)
+      end
+    end
+  end
   DB:AddLastAttacker(srcName, srcGUID, (GetRealZoneText and GetRealZoneText()) or "", guildName)
 end
 
