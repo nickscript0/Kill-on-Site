@@ -10,7 +10,11 @@ local Sync = {}
 local SYNC_COOLDOWN = 60
 local nextSyncAllowedAt = 0
 local PREFIX = "KOS2"
-local ADDON_VER = "2.9.1"
+local ADDON_VER = "2.9.3"
+
+-- 2.9.2: sync safety limits
+local MAX_DIFF_CHANGES = 600
+local MAX_DIFF_BYTES = 28000
 
 local peers = {} -- [sender] = { theirRev=0, theirSeq=0, lastHelloAt=0 }
 
@@ -164,7 +168,7 @@ function Sync:RequestDiff()
   local now = GetTime and GetTime() or 0
   if now < (nextSyncAllowedAt or 0) then
     local remain = math.ceil((nextSyncAllowedAt or 0) - now)
-    Notifier:Chat((L.SYNC_COOLDOWN or "Sync is on cooldown: %ds remaining."):format(remain))
+    Notifier:Chat((L.SYNC_COOLDOWN or L.SYNC_COOLDOWN):format(remain))
     return
   end
   if not CanSync() then
@@ -192,7 +196,7 @@ local function ApplyLines(sender, lines)
     end
   end
   Notifier:Chat(string.format(L.SYNC_RECEIVED, sender))
-  Notifier:Chat(("Applied %d changes."):format(applied))
+  Notifier:Chat((L.SYNC_APPLIED):format(applied))
   Notifier:Chat(L.SYNC_DONE)
   if KillOnSight_GUI and KillOnSight_GUI.RefreshAll then
     KillOnSight_GUI:RefreshAll()
@@ -235,15 +239,53 @@ function Sync:OnMessage(prefix, msg, channel, sender)
     local ch = BestChannel()
     if not ch then return end
 
-    local diff = BuildDiffSince(theirSeq)
-    local lines = {}
-    for _,c in ipairs(diff) do
-      lines[#lines+1] = SerializeChange(c)
+    local d = DB:GetData()
+    local oldest = 0
+    if DB.GetOldestChangeSeq then
+      oldest = tonumber(DB:GetOldestChangeSeq() or 0) or 0
+    else
+      oldest = tonumber(d.oldestSeq or 0) or 0
     end
 
-    -- if diff too big or empty, fallback to full snapshot (still via changes)
+    local function SendSnapshot()
+      -- Tell receiver to wipe before applying snapshot
+      Send(ch, ("RESET|%s|%s"):format(tostring(d.revision or 0), tostring(d.changeSeq or 0)))
+
+      local lines = {}
+      for key, entry in pairs(d.players or {}) do
+        lines[#lines+1] = SerializeChange({ seq=0, rev=d.revision or 0, op="upsert", kind="P", key=key, entry=entry })
+      end
+      for key, entry in pairs(d.guilds or {}) do
+        lines[#lines+1] = SerializeChange({ seq=0, rev=d.revision or 0, op="upsert", kind="G", key=key, entry=entry })
+      end
+      SendChunks(ch, lines)
+      Send(ch, ("END|%s"):format(tostring(d.changeSeq or 0)))
+    end
+
+    -- Too far behind (history pruned) => snapshot
+    if theirSeq < oldest then
+      SendSnapshot()
+      return
+    end
+
+    local diff = BuildDiffSince(theirSeq)
+    local lines = {}
+    local bytes = 0
+    for i, c in ipairs(diff) do
+      if i > MAX_DIFF_CHANGES then
+        SendSnapshot()
+        return
+      end
+      local s = SerializeChange(c)
+      bytes = bytes + #s + 1
+      if bytes > MAX_DIFF_BYTES then
+        SendSnapshot()
+        return
+      end
+      lines[#lines+1] = s
+    end
+
     if #lines == 0 then
-      -- send nothing but end marker
       Send(ch, "END|0")
       return
     end
@@ -252,6 +294,26 @@ function Sync:OnMessage(prefix, msg, channel, sender)
     Send(ch, ("END|%s"):format(tostring(DB:GetData().changeSeq or 0)))
     return
   end
+
+
+if cmd == "RESET" then
+  local rev, seq = strsplit("|", rest or "", 2)
+  rev = tonumber(rev) or 0
+  seq = tonumber(seq) or 0
+
+  -- wipe local lists before applying incoming snapshot lines
+  local d = DB:GetData()
+  d.players = {}
+  d.guilds = {}
+  d.changes = {}
+  d.changeSeq = seq
+  d.oldestSeq = seq
+  d.revision = math.max(tonumber(d.revision or 0), rev)
+
+  rx[sender] = rx[sender] or { lines = {} }
+  rx[sender].reset = true
+  return
+end
 
   if cmd == "D" then
     rx[sender] = rx[sender] or { lines = {} }

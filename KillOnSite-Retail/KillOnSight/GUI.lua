@@ -70,7 +70,7 @@ local function MakeSlider(parent, label, minV, maxV, step)
 end
 
 local function CreateScrollList(parent, columns)
-  -- columns: { {key="name", title="Name", width=160}, ... }
+  -- columns: { {key="name", title=L.UI_NAME, width=160}, ... }
   local container = CreateFrame("Frame", nil, parent)
   container:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, 0)
   container:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", 0, 0)
@@ -685,7 +685,7 @@ _G[sNearbyScale:GetName().."High"]:SetText("1.6")
 prof.nearbyFrame = prof.nearbyFrame or {}
 if type(prof.nearbyFrame.scale) ~= "number" then prof.nearbyFrame.scale = 1.0 end
 sNearbyScale:SetValue(prof.nearbyFrame.scale)
-_G[sNearbyScale:GetName().."Text"]:SetText(string.format("%s (%.2f)", (L.UI_NEARBY_SCALE or "Nearby window scale"), prof.nearbyFrame.scale))
+_G[sNearbyScale:GetName().."Text"]:SetText(string.format("%s (%.2f)", L.UI_NEARBY_SCALE, prof.nearbyFrame.scale))
 
 sNearbyScale:SetScript("OnValueChanged", function(self, val)
   -- Clamp & round to step
@@ -697,7 +697,7 @@ sNearbyScale:SetScript("OnValueChanged", function(self, val)
   elseif KillOnSight_Nearby and KillOnSight_Nearby.frame and KillOnSight_Nearby.frame.SetScale then
     KillOnSight_Nearby.frame:SetScale(val)
   end
-  _G[self:GetName().."Text"]:SetText(string.format("%s (%.2f)", (L.UI_NEARBY_SCALE or "Nearby window scale"), val))
+  _G[self:GetName().."Text"]:SetText(string.format("%s (%.2f)", L.UI_NEARBY_SCALE, val))
 end)
 
 
@@ -772,7 +772,7 @@ local tStealthTiming = pOpt:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 tStealthTiming:SetPoint("TOPLEFT", cStealthNearby, "BOTTOMLEFT", 0, -48)
 tStealthTiming:SetText("|cffffff00Banner Timing|r")
 
-local sStealthHold = MakeSlider(pOpt, L.UI_STEALTH_HOLD or "Banner hold (seconds)", 2, 12, 0.5)
+local sStealthHold = MakeSlider(pOpt, L.UI_STEALTH_HOLD or L.UI_STEALTH_HOLD, 2, 12, 0.5)
 sStealthHold:SetPoint("TOPLEFT", tStealthTiming, "BOTTOMLEFT", 0, -18)
 sStealthHold:SetValue(prof.stealthWarningHoldSeconds or 6.0)
 
@@ -783,7 +783,7 @@ sStealthHoldValue:SetText((prof.stealthWarningHoldSeconds or 6.0) .. "s")
 
 local tStealthHoldHelp = pOpt:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 tStealthHoldHelp:SetPoint("TOPLEFT", sStealthHold, "BOTTOMLEFT", 0, -10)
-tStealthHoldHelp:SetText("How long the warning stays fully visible before fading.")
+tStealthHoldHelp:SetText(L.HELP_BANNER_HOLD)
 
 sStealthHold:SetScript("OnValueChanged", function(self, v)
   v = math.floor(v * 10 + 0.5) / 10
@@ -793,7 +793,7 @@ sStealthHold:SetScript("OnValueChanged", function(self, v)
 end)
 
 
-local sStealthFade = MakeSlider(pOpt, L.UI_STEALTH_FADE or "Banner fade (seconds)", 0.2, 3.0, 0.1)
+local sStealthFade = MakeSlider(pOpt, L.UI_STEALTH_FADE or L.UI_STEALTH_FADE, 0.2, 3.0, 0.1)
 sStealthFade:SetPoint("TOPLEFT", tStealthHoldHelp, "BOTTOMLEFT", 0, -30)
 sStealthFade:SetValue(prof.stealthWarningFadeSeconds or 1.2)
 
@@ -803,7 +803,7 @@ sStealthFadeValue:SetText((prof.stealthWarningFadeSeconds or 1.2) .. "s")
 
 local tStealthFadeHelp = pOpt:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 tStealthFadeHelp:SetPoint("TOPLEFT", sStealthFade, "BOTTOMLEFT", 0, -10)
-tStealthFadeHelp:SetText("How long the warning takes to fade out smoothly.")
+tStealthFadeHelp:SetText(L.HELP_BANNER_FADE)
 
 sStealthFade:SetScript("OnValueChanged", function(self, v)
   v = math.floor(v * 10 + 0.5) / 10

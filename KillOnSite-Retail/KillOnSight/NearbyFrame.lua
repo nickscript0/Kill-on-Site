@@ -385,7 +385,7 @@ function Nearby:AlertNewEnemy(e)
   -- NOTE: We *must not* rely on (t == L.KOS) if locale keys are missing (nil), so we guard with t.
   local isKoS = false
   if t then
-    if (L and L.KOS and t == L.KOS) or (L and L.GUILD_KOS and t == L.GUILD_KOS) or t == "KoS" or t == "Guild-KoS" then
+    if (L and L.KOS and t == L.KOS) or (L and L.GUILD_KOS and t == L.GUILD_KOS) or t == L.KOS or t == L.GUILD_KOS then
       isKoS = true
     end
   end
@@ -480,19 +480,19 @@ local function ShowMenuFor(self, e)
   local has = (DB.LookupPlayer and DB:LookupPlayer(e.name)) and true or false
   local menu = {
     { text = e.name, isTitle = true, notCheckable = true },
-    { text = "Add KoS", notCheckable = true, disabled = has, func = function()
+    { text = L.UI_ADD_KOS, notCheckable = true, disabled = has, func = function()
         DB:AddPlayer(e.name)
         e.kosType = L.KOS
         self:ScheduleRefresh()
       end
     },
-    { text = "Remove KoS", notCheckable = true, disabled = not has, func = function()
+    { text = L.MM_REMOVE_KOS, notCheckable = true, disabled = not has, func = function()
         DB:RemovePlayer(e.name)
         if e.kosType == L.KOS then e.kosType = nil end
         self:ScheduleRefresh()
       end
     },
-    { text = "Clear Nearby List", notCheckable = true, func = function()
+    { text = L.MM_CLEAR_NEARBY, notCheckable = true, func = function()
         wipe(self.entries)
         wipe(self.alerted)
         self:ScheduleRefresh()
@@ -513,7 +513,7 @@ local function UpdateScroll(self)
   local tNow = Now()
 
   if self.countFS then
-    self.countFS:SetText(("Nearby: %d"):format(total))
+    self.countFS:SetText((L.UI_NEARBY_COUNT):format(total))
   end
 
   for i = 1, visible do
@@ -608,11 +608,11 @@ function Nearby:Create()
 
   -- Title + count like Spy
   local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-  title:SetText("Kill on Sight")
+  title:SetText(L.UI_TITLE)
   self.titleFS = title
 
   local count = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  count:SetText("Nearby: 0")
+  count:SetText(L.UI_NEARBY_ZERO)
   self.countFS = count
 
   -- Close
@@ -626,7 +626,7 @@ function Nearby:Create()
   header:SetBackdropColor(1,1,1,0.06)
 
   local hName = header:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-  hName:SetText("Name / Level / Time")
+  hName:SetText(L.UI_HEADER_NLT)
 
   -- Scroll
   local scroll = CreateFrame("ScrollFrame", "KillOnSight_NearbyScroll", f, "FauxScrollFrameTemplate")
@@ -691,13 +691,13 @@ function Nearby:Create()
       if not e then return end
       GameTooltip:SetOwner(selfBtn, "ANCHOR_RIGHT")
       GameTooltip:AddLine(e.name)
-      if e.level then GameTooltip:AddLine(("Level %s"):format(e.level > 0 and e.level or "??"), 1,1,1) end
+      if e.level then GameTooltip:AddLine((L.TOOLTIP_LEVEL):format(e.level > 0 and e.level or "??"), 1,1,1) end
       if e.guild and e.guild ~= "" then GameTooltip:AddLine(e.guild, 0.8,0.8,0.8) end
       if e.zone and e.zone ~= "" then GameTooltip:AddLine(e.zone, 0.8,0.8,0.8) end
       if e.kosType == L.KOS then
-        GameTooltip:AddLine("On KoS list", 1,0.2,0.2)
+        GameTooltip:AddLine(L.TOOLTIP_ON_KOS, 1,0.2,0.2)
       elseif e.kosType == L.GUILD_KOS then
-        GameTooltip:AddLine("Guild-KoS", 1,0.8,0.2)
+        GameTooltip:AddLine(L.GUILD_KOS, 1,0.8,0.2)
       end
       GameTooltip:Show()
     end)
@@ -773,6 +773,16 @@ function Nearby:Seen(name, classFile, guild, kosType, level)
   if not DB then return end
   local prof = DB:GetProfile()
   if prof.showNearbyFrame == false then return end
+-- Retail: do not populate Nearby list in sanctuary zones (prevents city/sanctuary spam)
+if GetZonePVPInfo and GetZonePVPInfo() == "sanctuary" then
+  if next(self.entries) ~= nil then
+    wipe(self.entries)
+    wipe(self.alerted)
+    self:ScheduleRefresh()
+  end
+  return
+end
+
 
   local now = Now()
   local ttl = ACTIVE_TTL -- seconds to keep a player in the list since last sighting

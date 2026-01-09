@@ -43,7 +43,7 @@ end
 
 local dataobj = LDB:NewDataObject("Kill on Sight", {
   type = "data source",
-  text = "Kill on Sight",
+  text = L.UI_TITLE,
   icon = "Interface\\TARGETINGFRAME\\UI-RaidTargetingIcon_8", -- skull raid marker
 })
 
@@ -75,18 +75,18 @@ function dataobj:OnClick(btn)
 
     local menu = {
       { text = L.UI_TITLE, isTitle = true, notCheckable = true },
-      { text = "Add KoS (target)", notCheckable = true, disabled = (not isPlayerTarget) or already, func = function()
+      { text = L.UI_ADD_KOS_TARGET, notCheckable = true, disabled = (not isPlayerTarget) or already, func = function()
           if not (UnitExists("target") and UnitIsPlayer("target")) then
-            DEFAULT_CHAT_FRAME:AddMessage("|cff00d0ff"..L.ADDON_PREFIX..":|r No player targeted.")
+            DEFAULT_CHAT_FRAME:AddMessage("|cff00d0ff"..L.ADDON_PREFIX..":|r "..L.ERR_NO_PLAYER_TARGET)
             return
           end
           local name = UnitName("target")
           if (DB.HasPlayer and DB:HasPlayer(name)) or (DB.LookupPlayer and DB:LookupPlayer(name)) then
             return
           end
-          DB:AddPlayer(name, "KOS", nil, UnitName("player"))
+          DB:AddPlayer(name, L.KOS, nil, UnitName("player"))
           if KillOnSight_Notifier and KillOnSight_Notifier.Chat then
-            KillOnSight_Notifier:Chat(string.format(L.ADDED_PLAYER, "KOS", name))
+            KillOnSight_Notifier:Chat(string.format(L.ADDED_PLAYER, L.KOS, name))
           end
           if KillOnSight_GUI and KillOnSight_GUI.RefreshAll then
             KillOnSight_GUI:RefreshAll()

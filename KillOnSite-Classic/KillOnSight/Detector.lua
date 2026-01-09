@@ -11,6 +11,19 @@ local function GetUnitGuild(unit)
 end
 local Detector = {}
 local lastNotifyAt = {} -- [key] = time()
+local lastCleanupAt = 0
+local CLEANUP_INTERVAL = 600      -- seconds
+local NOTIFY_TTL = 3600           -- seconds to keep keys
+
+local function CleanupNotifyCache(now)
+  if (now - (lastCleanupAt or 0)) < CLEANUP_INTERVAL then return end
+  lastCleanupAt = now
+  for k,t in pairs(lastNotifyAt) do
+    if (not t) or (now - t) > NOTIFY_TTL then
+      lastNotifyAt[k] = nil
+    end
+  end
+end
 
 local function Now() return time() end
 

@@ -12,6 +12,14 @@ end
 local Detector = {}
 local lastNotifyAt = {} -- [key] = time()
 
+-- 2.9.2: cleanup lastNotifyAt so it doesn't grow forever
+C_Timer.NewTicker(600, function()
+  local now = time()
+  for k, t in pairs(lastNotifyAt) do
+    if now - t > 3600 then lastNotifyAt[k] = nil end
+  end
+end)
+
 local function Now() return time() end
 
 local function InAllowedContext()

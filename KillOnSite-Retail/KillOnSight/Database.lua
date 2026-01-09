@@ -10,6 +10,10 @@ KillOnSightDB = KillOnSightDB or {}
 
 local DB = {}
 
+-- 2.9.2 bounded changelog (prevents SavedVariables bloat)
+local CHANGELOG_KEEP = 800
+local CHANGELOG_PRUNE_EVERY = 25
+
 local function Now() return time() end
 
 local function RealmKey()
@@ -50,6 +54,7 @@ stealthWarningFadeSeconds = 1.2,
   data = {
     revision = 0,          -- global revision
     changeSeq = 0,         -- monotonically increasing change id
+    oldestSeq = 0,         -- lowest retained change id (for pruning)
     players = {},          -- [lowerName] = entry
     guilds  = {},          -- [lowerGuild] = entry
     changes = {},          -- [seq] = { op="upsert"/"delete", kind="P"/"G", key, entry, rev }
@@ -87,24 +92,71 @@ function DB:Init()
   -- Force ultra-minimal Nearby window (no option to change)
   realmDB.profile.nearbyMinimal = true
 
-  -- prune very old change log if it grew huge
+    -- prune very old change log if it grew huge
   local data = realmDB.data
-  local changes = data.changes or {}
+  data.changes = data.changes or {}
   local count = 0
-  for _ in pairs(changes) do count = count + 1 end
-  if count > 800 then
-    -- keep last ~500
-    local keys = {}
-    for k in pairs(changes) do keys[#keys+1] = k end
-    table.sort(keys)
-    for i=1, (#keys-500) do
-      changes[keys[i]] = nil
+  for _ in pairs(data.changes) do count = count + 1 end
+  if count > CHANGELOG_KEEP then
+    self:PruneChangeLog()
+  else
+    -- ensure oldestSeq is set at least once
+    if not data.oldestSeq then
+      local minSeq
+      for k in pairs(data.changes) do
+        local kn = tonumber(k)
+        if kn and (not minSeq or kn < minSeq) then minSeq = kn end
+      end
+      data.oldestSeq = minSeq or data.changeSeq or 0
     end
   end
 end
 
+
 function DB:GetProfile() return self.realmDB.profile end
 function DB:GetData() return self.realmDB.data end
+
+function DB:PruneChangeLog()
+  local d = self:GetData()
+  d.changes = d.changes or {}
+  -- Fast path: count
+  local count = 0
+  for _ in pairs(d.changes) do count = count + 1 end
+  if count <= CHANGELOG_KEEP then
+    -- keep oldestSeq up to date if possible
+    if not d.oldestSeq then
+      -- find minimum existing
+      local minSeq
+      for s in pairs(d.changes) do
+        if type(s) == "number" then
+          if not minSeq or s < minSeq then minSeq = s end
+        else
+          local sn = tonumber(s)
+          if sn and (not minSeq or sn < minSeq) then minSeq = sn end
+        end
+      end
+      d.oldestSeq = minSeq or d.changeSeq or 0
+    end
+    return
+  end
+
+  local keys = {}
+  for k in pairs(d.changes) do
+    local kn = tonumber(k)
+    if kn then keys[#keys+1] = kn end
+  end
+  table.sort(keys)
+  local keepFrom = math.max(1, #keys - CHANGELOG_KEEP + 1)
+  for i = 1, keepFrom - 1 do
+    d.changes[keys[i]] = nil
+  end
+  d.oldestSeq = keys[keepFrom] or d.changeSeq or 0
+end
+
+function DB:GetOldestChangeSeq()
+  local d = self:GetData()
+  return tonumber(d.oldestSeq or 0) or 0
+end
 
 function DB:_IncRevision()
   local d = self:GetData()
@@ -117,7 +169,14 @@ function DB:_PushChange(op, kind, key, entry)
   d.changeSeq = (d.changeSeq or 0) + 1
   local seq = d.changeSeq
   d.changes[seq] = { op=op, kind=kind, key=key, entry=entry, rev=d.revision }
+
+  d._pruneCounter = (d._pruneCounter or 0) + 1
+  if d._pruneCounter >= CHANGELOG_PRUNE_EVERY then
+    d._pruneCounter = 0
+    self:PruneChangeLog()
+  end
 end
+
 
 local function MakePlayerEntry(name, listType, reason, addedBy, existing)
   return {

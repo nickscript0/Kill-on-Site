@@ -132,8 +132,8 @@ local function List()
   local DB = GetDB()
   if not DB then return end
   local d = DB:GetData()
-  Print("Players: "..tostring((d.players and #d.players) or 0))
-  Print("Guilds: "..tostring((d.guilds and #d.guilds) or 0))
+  Print(string.format(L.UI_LIST_PLAYERS, tostring((d.players and #d.players) or 0)))
+  Print(string.format(L.UI_LIST_GUILDS, tostring((d.guilds and #d.guilds) or 0)))
 end
 
 SLASH_KILLONSIGHT1 = "/kos"
@@ -167,6 +167,21 @@ end
 
 local clSeenAt = {}      -- [nameLower] = GetTime()
 local clNotifyAt = {}    -- [key] = GetTime()
+local clCleanupAt = 0
+local CL_CLEANUP_INTERVAL = 600  -- seconds
+local CL_CACHE_TTL = 900         -- seconds (must be >= max notify cooldown)
+
+local function CleanupCLCaches(now)
+  if (now - (clCleanupAt or 0)) < CL_CLEANUP_INTERVAL then return end
+  clCleanupAt = now
+  for k,t in pairs(clNotifyAt) do
+    if (not t) or (now - t) > CL_CACHE_TTL then clNotifyAt[k] = nil end
+  end
+  for k,t in pairs(clSeenAt) do
+    if (not t) or (now - t) > 10.0 then clSeenAt[k] = nil end
+  end
+end
+
 
 -- Guild resolve cache (prevents expensive ResolveGuildForGuid scans on every combat log tick)
 local guildCache = {} -- [guid] = { guild = "name", t = GetTime(), lastTry = GetTime() }
@@ -350,13 +365,15 @@ local function HandleCombatLog()
 
   local timestamp, subevent, hideCaster,
     srcGUID, srcName, srcFlags, srcRaidFlags,
-    dstGUID, dstName, dstFlags, dstRaidFlags = CombatLogGetCurrentEventInfo()
+    dstGUID, dstName, dstFlags, dstRaidFlags,
+    spellId, spellName = CombatLogGetCurrentEventInfo()
 
   local now = (GetTime and GetTime()) or 0
+  CleanupCLCaches(now)
 
   -- Stealth detection (Spy-style): alert on ANY hostile player entering stealth/prowl/shadowmeld.
   if subevent == "SPELL_AURA_APPLIED" or subevent == "SPELL_AURA_REFRESH" then
-    local spellId, spellName = select(12, CombatLogGetCurrentEventInfo())
+    -- spellId/spellName were captured from the initial CombatLogGetCurrentEventInfo() call
     if IsFlagPlayer(srcFlags) and IsFlagHostileSpy(srcFlags) and IsStealthAura(spellId, spellName) then
       local cleanName = srcName and (srcName:match("^[^-]+") or srcName)
       if cleanName and not IsGroupOrSelfByName(cleanName) then
@@ -471,7 +488,7 @@ Core:SetScript("OnEvent", function(self, event, ...)
     local Nearby = GetNearby()
     if Nearby and Nearby.Init then Nearby:Init() end
     StartNearbyNameplateScan()
-    Print("Loaded. Type /kos show")
+    Print(L.MSG_LOADED)
     return
   end
 

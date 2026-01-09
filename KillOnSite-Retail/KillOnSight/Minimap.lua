@@ -41,16 +41,16 @@ local function ShowDropdown(menuTable)
   ToggleDropDownMenu(1, nil, f, "cursor", 0, 0)
 end
 
-local dataobj = LDB:NewDataObject("Kill on Sight", {
+local dataobj = LDB:NewDataObject(L.UI_TITLE, {
   type = "data source",
-  text = "Kill on Sight",
+  text = L.UI_TITLE,
   icon = "Interface\\TARGETINGFRAME\\UI-RaidTargetingIcon_8", -- skull raid marker
 })
 
 function dataobj:OnTooltipShow()
-  self:AddLine("Kill on Sight")
-  self:AddLine("Left-click: Open/Close", 1,1,1)
-  self:AddLine("Right-click: Menu", 1,1,1)
+  self:AddLine(L.UI_TITLE)
+  self:AddLine(L.TOOLTIP_LEFTCLICK, 1,1,1)
+  self:AddLine(L.TOOLTIP_RIGHTCLICK, 1,1,1)
 end
 
 function dataobj:OnClick(btn)
@@ -75,9 +75,9 @@ function dataobj:OnClick(btn)
 
     local menu = {
       { text = L.UI_TITLE, isTitle = true, notCheckable = true },
-      { text = "Add KoS (target)", notCheckable = true, disabled = (not isPlayerTarget) or already, func = function()
+      { text = L.MM_ADD_TARGET, notCheckable = true, disabled = (not isPlayerTarget) or already, func = function()
           if not (UnitExists("target") and UnitIsPlayer("target")) then
-            DEFAULT_CHAT_FRAME:AddMessage("|cff00d0ff"..L.ADDON_PREFIX..":|r No player targeted.")
+            DEFAULT_CHAT_FRAME:AddMessage("|cff00d0ff"..L.ADDON_PREFIX..":|r "..L.MM_NO_TARGET)
             return
           end
           local name = UnitName("target")

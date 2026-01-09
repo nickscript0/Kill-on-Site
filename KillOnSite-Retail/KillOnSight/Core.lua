@@ -132,12 +132,12 @@ local function List()
   local DB = GetDB()
   if not DB then return end
   local d = DB:GetData()
-  Print("Players: "..tostring((d.players and #d.players) or 0))
-  Print("Guilds: "..tostring((d.guilds and #d.guilds) or 0))
+  Print(L.CHAT_PLAYERS..tostring((d.players and #d.players) or 0))
+  Print(L.CHAT_GUILDS..tostring((d.guilds and #d.guilds) or 0))
 end
 
 SLASH_KILLONSIGHT1 = "/kos"
-SlashCmdList["KILLONSIGHT"] = function(msg)
+SlashCmdList[L.ADDON_PREFIX] = function(msg)
   local cmd, rest = SplitFirst((msg or ""):lower())
   cmd = cmd or ""
 
@@ -167,6 +167,17 @@ end
 
 local clSeenAt = {}      -- [nameLower] = GetTime()
 local clNotifyAt = {}    -- [key] = GetTime()
+
+-- 2.9.2: combat log cache cleanup
+C_Timer.NewTicker(600, function()
+  local now = (GetTime and GetTime()) or 0
+  for k, t in pairs(clNotifyAt) do
+    if now - t > 900 then clNotifyAt[k] = nil end
+  end
+  for k, t in pairs(clSeenAt) do
+    if now - t > 10 then clSeenAt[k] = nil end
+  end
+end)
 
 -- Guild resolve cache (prevents expensive ResolveGuildForGuid scans on every combat log tick)
 local guildCache = {} -- [guid] = { guild = "name", t = GetTime(), lastTry = GetTime() }
@@ -350,19 +361,19 @@ local function HandleCombatLog()
 
   local timestamp, subevent, hideCaster,
     srcGUID, srcName, srcFlags, srcRaidFlags,
-    dstGUID, dstName, dstFlags, dstRaidFlags = CombatLogGetCurrentEventInfo()
+    dstGUID, dstName, dstFlags, dstRaidFlags,
+    spellId, spellName, spellSchool = CombatLogGetCurrentEventInfo()
 
   local now = (GetTime and GetTime()) or 0
 
   -- Stealth detection (Spy-style): alert on ANY hostile player entering stealth/prowl/shadowmeld.
   if subevent == "SPELL_AURA_APPLIED" or subevent == "SPELL_AURA_REFRESH" then
-    local spellId, spellName = select(12, CombatLogGetCurrentEventInfo())
     if IsFlagPlayer(srcFlags) and IsFlagHostileSpy(srcFlags) and IsStealthAura(spellId, spellName) then
       local cleanName = srcName and (srcName:match("^[^-]+") or srcName)
       if cleanName and not IsGroupOrSelfByName(cleanName) then
         local key = cleanName:lower()
         if ShouldCLNotify("cl:stealth:" .. key, now, 8) then
-          -- Add to Nearby as "Hidden"
+          -- Add to Nearby as L.HIDDEN
           if Nearby and Nearby.Seen then
             local classFile
             if srcGUID and GetPlayerInfoByGUID then
@@ -471,7 +482,7 @@ Core:SetScript("OnEvent", function(self, event, ...)
     local Nearby = GetNearby()
     if Nearby and Nearby.Init then Nearby:Init() end
     StartNearbyNameplateScan()
-    Print("Loaded. Type /kos show")
+    Print(L.CHAT_LOADED)
     return
   end
 

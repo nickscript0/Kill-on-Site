@@ -10,6 +10,12 @@ KillOnSightDB = KillOnSightDB or {}
 
 local DB = {}
 
+-- Change log retention (for diff-based sync).
+-- Keeping this bounded prevents SavedVariables bloat and slows downs over long play sessions.
+local CHANGELOG_KEEP = 800      -- how many recent changes to retain
+local CHANGELOG_PRUNE_EVERY = 25 -- prune every N local changes
+
+
 local function Now() return time() end
 
 local function RealmKey()
@@ -92,19 +98,53 @@ function DB:Init()
   local changes = data.changes or {}
   local count = 0
   for _ in pairs(changes) do count = count + 1 end
-  if count > 800 then
-    -- keep last ~500
+  if count > (CHANGELOG_KEEP + 200) then
+    -- keep last ~CHANGELOG_KEEP
     local keys = {}
     for k in pairs(changes) do keys[#keys+1] = k end
     table.sort(keys)
-    for i=1, (#keys-500) do
+    for i=1, (#keys-CHANGELOG_KEEP) do
       changes[keys[i]] = nil
     end
+    data.oldestSeq = keys[#keys-CHANGELOG_KEEP+1] or 0
   end
 end
 
 function DB:GetProfile() return self.realmDB.profile end
 function DB:GetData() return self.realmDB.data end
+
+function DB:GetOldestChangeSeq()
+  local d = self:GetData()
+  if d.oldestSeq then return d.oldestSeq end
+  local minSeq = nil
+  local changes = d.changes or {}
+  for s in pairs(changes) do
+    s = tonumber(s)
+    if s and (not minSeq or s < minSeq) then minSeq = s end
+  end
+  d.oldestSeq = minSeq or 0
+  return d.oldestSeq
+end
+
+function DB:PruneChangeLog()
+  local d = self:GetData()
+  d.changes = d.changes or {}
+  local seq = d.changeSeq or 0
+  if seq <= CHANGELOG_KEEP then
+    d.oldestSeq = d.oldestSeq or 0
+    return
+  end
+
+  local cutoff = seq - CHANGELOG_KEEP
+  for s in pairs(d.changes) do
+    local n = tonumber(s)
+    if n and n <= cutoff then
+      d.changes[s] = nil
+    end
+  end
+  -- Record an approximate oldest seq so Sync can detect "too far behind".
+  d.oldestSeq = cutoff + 1
+end
 
 function DB:_IncRevision()
   local d = self:GetData()
@@ -117,6 +157,11 @@ function DB:_PushChange(op, kind, key, entry)
   d.changeSeq = (d.changeSeq or 0) + 1
   local seq = d.changeSeq
   d.changes[seq] = { op=op, kind=kind, key=key, entry=entry, rev=d.revision }
+
+  -- Keep the change log bounded so diff-sync stays fast and SavedVariables don't balloon.
+  if (seq % CHANGELOG_PRUNE_EVERY) == 0 then
+    self:PruneChangeLog()
+  end
 end
 
 local function MakePlayerEntry(name, listType, reason, addedBy, existing)

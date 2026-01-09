@@ -74,3 +74,24 @@ L.UI_NEARBY_ROWICONS = "Row icons (class/skull)"
 L.UI_NEARBY_ROWFADE = "Per-row fade timers"
 
 L.UI_CLOSE = "Close"
+
+
+-- Added for full localization pass (Retail)
+L.CHAT_PLAYERS = "Players: "
+L.CHAT_GUILDS = "Guilds: "
+L.CHAT_LOADED = "Loaded. Type /kos show"
+L.MM_ADD_TARGET = "Add KoS (target)"
+L.MM_NO_TARGET = "No player targeted."
+L.MM_REMOVE_KOS = "Remove KoS"
+L.MM_CLEAR_NEARBY = "Clear Nearby List"
+L.UI_HEADER_NLT = "Name / Level / Time"
+L.UI_NEARBY_COUNT = "Nearby: %d"
+L.UI_NEARBY_ZERO = "Nearby: 0"
+L.TOOLTIP_LEVEL = "Level %s"
+L.TOOLTIP_ON_KOS = "On KoS list"
+L.SYNC_APPLIED = "Applied %d changes."
+L.HELP_BANNER_HOLD = "How long the warning stays fully visible before fading."
+L.HELP_BANNER_FADE = "How long the warning takes to fade out smoothly."
+
+L.TOOLTIP_LEFTCLICK = "Left-click: Open/Close"
+L.TOOLTIP_RIGHTCLICK = "Right-click: Menu"

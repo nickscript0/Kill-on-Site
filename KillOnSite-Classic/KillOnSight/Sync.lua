@@ -10,7 +10,12 @@ local Sync = {}
 local SYNC_COOLDOWN = 60
 local nextSyncAllowedAt = 0
 local PREFIX = "KOS2"
-local ADDON_VER = "2.9.1"
+local ADDON_VER = "2.9.3"
+
+-- Safety limits: if a peer is too far behind (or diff is huge), send a compact snapshot instead.
+local MAX_DIFF_CHANGES = 600
+local MAX_DIFF_BYTES = 28000 -- approx, across serialized lines before chunking
+
 
 local peers = {} -- [sender] = { theirRev=0, theirSeq=0, lastHelloAt=0 }
 
@@ -212,6 +217,35 @@ local function BuildDiffSince(seq)
   return out
 end
 
+local function GetOldestSeq()
+  if DB and DB.GetOldestChangeSeq then
+    return DB:GetOldestChangeSeq() or 0
+  end
+  -- fallback: compute from table
+  local d = DB:GetData()
+  local minSeq = nil
+  local changes = d.changes or {}
+  for s in pairs(changes) do
+    s = tonumber(s)
+    if s and (not minSeq or s < minSeq) then minSeq = s end
+  end
+  return minSeq or 0
+end
+
+local function BuildSnapshotLines()
+  local d = DB:GetData()
+  local lines = {}
+
+  for key, entry in pairs(d.players or {}) do
+    lines[#lines+1] = SerializeChange({ op="upsert", kind="P", key=key, entry=entry, rev=d.revision })
+  end
+  for key, entry in pairs(d.guilds or {}) do
+    lines[#lines+1] = SerializeChange({ op="upsert", kind="G", key=key, entry=entry, rev=d.revision })
+  end
+
+  return lines
+end
+
 function Sync:OnMessage(prefix, msg, channel, sender)
   if prefix ~= PREFIX then return end
   if sender == UnitName("player") then return end
@@ -228,6 +262,15 @@ function Sync:OnMessage(prefix, msg, channel, sender)
     return
   end
 
+  if cmd == "RESET" then
+    -- Sender is providing a full snapshot; wipe local tables so state matches exactly.
+    local d = DB:GetData()
+    d.players = {}
+    d.guilds  = {}
+    rx[sender] = nil
+    return
+  end
+
   if cmd == "REQ" then
     if not CanSync() then return end
     local theirRev, theirSeq = strsplit("|", rest or "", 2)
@@ -235,21 +278,45 @@ function Sync:OnMessage(prefix, msg, channel, sender)
     local ch = BestChannel()
     if not ch then return end
 
-    local diff = BuildDiffSince(theirSeq)
-    local lines = {}
-    for _,c in ipairs(diff) do
-      lines[#lines+1] = SerializeChange(c)
+    local d = DB:GetData()
+    local oldest = GetOldestSeq() or 0
+
+    -- If they've requested a seq older than what we still retain, we cannot build a correct diff.
+    -- Send a snapshot with a RESET so their DB matches ours exactly.
+    local useSnapshot = (theirSeq < (oldest - 1))
+
+    local diff = nil
+    local lines = nil
+
+    if not useSnapshot then
+      diff = BuildDiffSince(theirSeq)
+      lines = {}
+      local totalBytes = 0
+      for _,c in ipairs(diff) do
+        local s = SerializeChange(c)
+        totalBytes = totalBytes + #s
+        lines[#lines+1] = s
+        if #lines > MAX_DIFF_CHANGES or totalBytes > MAX_DIFF_BYTES then
+          useSnapshot = true
+          break
+        end
+      end
     end
 
-    -- if diff too big or empty, fallback to full snapshot (still via changes)
-    if #lines == 0 then
-      -- send nothing but end marker
+    if useSnapshot then
+      -- Reset and send a snapshot (upserts for all current entries).
+      Send(ch, ("RESET|%s|%s"):format(tostring(d.revision or 0), tostring(d.changeSeq or 0)))
+      lines = BuildSnapshotLines()
+    end
+
+    if (not lines) or #lines == 0 then
+      -- nothing to send
       Send(ch, "END|0")
       return
     end
 
     SendChunks(ch, lines)
-    Send(ch, ("END|%s"):format(tostring(DB:GetData().changeSeq or 0)))
+    Send(ch, ("END|%s"):format(tostring(d.changeSeq or 0)))
     return
   end
 

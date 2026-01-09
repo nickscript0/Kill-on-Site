@@ -480,19 +480,19 @@ local function ShowMenuFor(self, e)
   local has = (DB.LookupPlayer and DB:LookupPlayer(e.name)) and true or false
   local menu = {
     { text = e.name, isTitle = true, notCheckable = true },
-    { text = "Add KoS", notCheckable = true, disabled = has, func = function()
+    { text = L.UI_ADD_KOS, notCheckable = true, disabled = has, func = function()
         DB:AddPlayer(e.name)
         e.kosType = L.KOS
         self:ScheduleRefresh()
       end
     },
-    { text = "Remove KoS", notCheckable = true, disabled = not has, func = function()
+    { text = L.UI_REMOVE_KOS, notCheckable = true, disabled = not has, func = function()
         DB:RemovePlayer(e.name)
         if e.kosType == L.KOS then e.kosType = nil end
         self:ScheduleRefresh()
       end
     },
-    { text = "Clear Nearby List", notCheckable = true, func = function()
+    { text = L.UI_CLEAR_NEARBY, notCheckable = true, func = function()
         wipe(self.entries)
         wipe(self.alerted)
         self:ScheduleRefresh()
@@ -513,7 +513,7 @@ local function UpdateScroll(self)
   local tNow = Now()
 
   if self.countFS then
-    self.countFS:SetText(("Nearby: %d"):format(total))
+    self.countFS:SetText(string.format(L.UI_NEARBY_COUNT, total))
   end
 
   for i = 1, visible do
@@ -608,11 +608,11 @@ function Nearby:Create()
 
   -- Title + count like Spy
   local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-  title:SetText("Kill on Sight")
+  title:SetText(L.UI_TITLE)
   self.titleFS = title
 
   local count = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  count:SetText("Nearby: 0")
+  count:SetText(string.format(L.UI_NEARBY_COUNT, 0))
   self.countFS = count
 
   -- Close
@@ -626,7 +626,7 @@ function Nearby:Create()
   header:SetBackdropColor(1,1,1,0.06)
 
   local hName = header:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-  hName:SetText("Name / Level / Time")
+  hName:SetText(L.UI_NEARBY_HEADER)
 
   -- Scroll
   local scroll = CreateFrame("ScrollFrame", "KillOnSight_NearbyScroll", f, "FauxScrollFrameTemplate")
