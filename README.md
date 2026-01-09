@@ -80,3 +80,30 @@ Designed for PvP awareness, Classic and Retail compatible, and optimized for per
 
 ## Installation
 https://www.curseforge.com/wow/addons/kill-on-sight
+---
+
+### 🌍 Language Support
+
+KillOnSight now includes built-in localization support and will automatically display text in your game client’s language when available.
+
+**Supported languages:**
+- 🇺🇸 English (enUS – fallback)
+- 🇧🇷 Portuguese (ptBR)
+- 🇷🇺 Russian (ruRU)
+- 🇨🇳 Mandarin Chinese (zhCN)
+- 🇪🇸 Spanish (esES / esMX)
+- 🇫🇷 French (frFR)
+- 🇩🇪 German (deDE)
+- 🇰🇷 Korean (koKR)
+- 🇳🇱 Dutch (nlNL)
+- 🇩🇰 Danish (daDK)
+
+If a translation is missing or incomplete, the addon safely falls back to English — no errors, no broken UI.
+
+Localization is applied consistently across:
+- Nearby window labels
+- Context menus
+- Slash command output
+- Alerts and notifications
+- Minimap tooltips and options
+
