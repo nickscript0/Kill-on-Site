@@ -78,3 +78,5 @@ L.MSG_LOADED = "Loaded. Type /kos show"
 L.UI_NEARBY_HEADER = "Name / Level / Time"
 
 
+
+L.STEALTH_DETECTED_TITLE = "Stealth player detected!"

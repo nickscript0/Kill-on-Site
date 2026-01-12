@@ -10,6 +10,31 @@ KillOnSightDB = KillOnSightDB or {}
 
 local DB = {}
 
+-- Normalize class input to classFile token (e.g. "ROGUE")
+local _locToClassFile
+local function _NormalizeClassForDB(classIn)
+  if not classIn or classIn == "" then return nil end
+  if RAID_CLASS_COLORS and RAID_CLASS_COLORS[classIn] then
+    return classIn
+  end
+  if not _locToClassFile then
+    _locToClassFile = {}
+    if LOCALIZED_CLASS_NAMES_MALE then
+      for file, loc in pairs(LOCALIZED_CLASS_NAMES_MALE) do
+        _locToClassFile[loc] = file
+      end
+    end
+    if LOCALIZED_CLASS_NAMES_FEMALE then
+      for file, loc in pairs(LOCALIZED_CLASS_NAMES_FEMALE) do
+        _locToClassFile[loc] = file
+      end
+    end
+  end
+  return _locToClassFile[classIn]
+end
+
+
+
 -- Change log retention (for diff-based sync).
 -- Keeping this bounded prevents SavedVariables bloat and slows downs over long play sessions.
 local CHANGELOG_KEEP = 800      -- how many recent changes to retain
@@ -164,9 +189,10 @@ function DB:_PushChange(op, kind, key, entry)
   end
 end
 
-local function MakePlayerEntry(name, listType, reason, addedBy, existing)
+local function MakePlayerEntry(name, listType, reason, addedBy, existing, class)
   return {
     name = name,
+    class = class or (existing and existing.class) or nil,
     type = listType or L.KOS,
     reason = norm(reason),
     addedBy = addedBy or UnitName("player") or "Unknown",
@@ -190,12 +216,12 @@ local function MakeGuildEntry(guild, listType, reason, addedBy, existing)
   }
 end
 
-function DB:AddPlayer(name, listType, reason, addedBy)
+function DB:AddPlayer(name, listType, reason, addedBy, class)
   name = norm(name); if not name then return false end
   local key = name:lower()
   local d = self:GetData()
   local existing = d.players[key]
-  local entry = MakePlayerEntry(name, listType, reason, addedBy, existing)
+  local entry = MakePlayerEntry(name, listType, reason, addedBy, existing, class)
   d.players[key] = entry
   self:_IncRevision()
   self:_PushChange("upsert","P",key,entry)
@@ -247,6 +273,22 @@ end
 
 function DB:LookupGuild(guild)
   if not guild or guild == "" then return nil end
+
+function DB:SetPlayerClass(name, class)
+  if not name or not class then return false end
+  local key = name:lower()
+  local d = self:GetData()
+  local e = d.players[key]
+  if not e then return false end
+  if e.class == class then return false end
+  e.class = class
+  e.modifiedAt = Now()
+  self:_IncRevision()
+  self:_PushChange("upsert","P",key,e)
+  return true
+end
+
+
   return self:GetData().guilds[guild:lower()]
 end
 
@@ -297,13 +339,20 @@ function DB:ApplyRemoteChange(sender, change)
 end
 
 
-function DB:AddLastAttacker(name, guid, zone, guild)
+function DB:AddLastAttacker(name, guid, zone, guild, classFile)
   if not name or name == "" then return end
   local d = self:GetData()
   d.lastAttackers = d.lastAttackers or {}
   local keyName = name:lower()
   local keyGUID = (guid and guid ~= "") and guid or nil
 
+
+  -- Resolve/persist class immediately when possible (prevents "late recolor" after login)
+  local class = _NormalizeClassForDB(classFile)
+  if not class and keyGUID and GetPlayerInfoByGUID then
+    local _, cls = GetPlayerInfoByGUID(keyGUID)
+    class = _NormalizeClassForDB(cls)
+  end
   -- remove existing entry (prefer GUID match when available)
   for j = #d.lastAttackers, 1, -1 do
     local e = d.lastAttackers[j]
@@ -316,7 +365,8 @@ function DB:AddLastAttacker(name, guid, zone, guild)
     end
   end
 
-  table.insert(d.lastAttackers, 1, { name = name, guid = guid or "", zone = zone or "", guild = guild or "" })
+  table.insert(d.lastAttackers, 1, { name = name,
+        class = class, guid = guid or "", zone = zone or "", guild = guild or "" })
 
   -- cap
   while #d.lastAttackers > 50 do

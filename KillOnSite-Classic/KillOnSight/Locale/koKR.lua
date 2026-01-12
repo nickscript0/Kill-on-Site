@@ -78,3 +78,5 @@ L.MSG_LOADED = "로드됨. /kos show 입력"
 L.UI_NEARBY_HEADER = "이름 / 레벨 / 시간"
 
 
+
+L.STEALTH_DETECTED_TITLE = "은신 플레이어 감지!"

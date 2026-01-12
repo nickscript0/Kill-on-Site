@@ -16,6 +16,24 @@ local function Print(msg)
   DEFAULT_CHAT_FRAME:AddMessage("|cff00d0ff"..L.ADDON_PREFIX..":|r "..msg)
 end
 
+
+-------------------------------------------------
+-- Class Icons
+-------------------------------------------------
+local CLASS_ICON_TEXTURE = "Interface\\GLUES\\CHARACTERCREATE\\UI-CHARACTERCREATE-CLASSES"
+
+local function _ApplyClassIcon(tex, classFile)
+  if not tex then return end
+  if not classFile or not CLASS_ICON_TCOORDS or not CLASS_ICON_TCOORDS[classFile] then
+    tex:Hide()
+    return
+  end
+  local c = CLASS_ICON_TCOORDS[classFile]
+  tex:SetTexture(CLASS_ICON_TEXTURE)
+  tex:SetTexCoord(c[1], c[2], c[3], c[4])
+  tex:Show()
+end
+
 local function CreateBackdrop(f)
   -- Classic uses BackdropTemplate for SetBackdrop
   if not f.SetBackdrop and BackdropTemplateMixin then
@@ -127,6 +145,15 @@ local function CreateScrollList(parent, columns)
         local fs = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         fs:SetPoint("LEFT", xx, 0)
         fs:SetWidth(col.width)
+      if col.key == "name" then
+        r.classIcon = r:CreateTexture(nil, "ARTWORK")
+        r.classIcon:SetSize(14, 14)
+        r.classIcon:SetPoint("LEFT", xx + 2, 0)
+        r.classIcon:Hide()
+        fs:ClearAllPoints()
+        fs:SetPoint("LEFT", xx + 18, 0)
+        fs:SetWidth(col.width - 18)
+      end
         fs:SetJustifyH("LEFT")
         fs:SetText("")
         r.cols[col.key] = fs
@@ -163,6 +190,9 @@ local function CreateScrollList(parent, columns)
         for _,col in ipairs(columns) do
           local v = item[col.key]
           row.cols[col.key]:SetText(v or "")
+          if col.key == "name" and row.classIcon then
+            _ApplyClassIcon(row.classIcon, item._class)
+          end
         end
         row:Show()
       end
@@ -181,6 +211,67 @@ local function SortPairs(tbl, keyFunc)
   return arr
 end
 
+
+-------------------------------------------------
+-- Class color helpers (GUI)
+-- Nearby list already tracks class; we reuse that cache when available.
+-------------------------------------------------
+local function _ClassColorPrefix(classFile)
+  if classFile and RAID_CLASS_COLORS and RAID_CLASS_COLORS[classFile] then
+    local c = RAID_CLASS_COLORS[classFile]
+    return ("|cff%02x%02x%02x"):format(c.r*255, c.g*255, c.b*255)
+  end
+  return nil
+end
+
+local function _ColorizeName(name, classFile)
+  if not name or name == "" then return "" end
+  local p = _ClassColorPrefix(classFile)
+  if p then
+    return p .. name .. "|r"
+  end
+  return name
+end
+
+local _localizedToClassFile
+local function _NormalizeClass(classIn)
+  if not classIn or classIn == "" then return nil end
+  if RAID_CLASS_COLORS and RAID_CLASS_COLORS[classIn] then
+    return classIn
+  end
+  if not _localizedToClassFile then
+    _localizedToClassFile = {}
+    if LOCALIZED_CLASS_NAMES_MALE then
+      for file, loc in pairs(LOCALIZED_CLASS_NAMES_MALE) do
+        _localizedToClassFile[loc] = file
+      end
+    end
+    if LOCALIZED_CLASS_NAMES_FEMALE then
+      for file, loc in pairs(LOCALIZED_CLASS_NAMES_FEMALE) do
+        _localizedToClassFile[loc] = file
+      end
+    end
+  end
+  return _localizedToClassFile[classIn]
+end
+
+local function _GuessClassFor(name, guid)
+  -- 1) Prefer Nearby cache (fast + reliable when recently seen)
+  if name and KillOnSight_Nearby and KillOnSight_Nearby.entries then
+    local e = KillOnSight_Nearby.entries[name:lower()]
+    if e and e.class then return e.class end
+  end
+
+  -- 2) Try GUID lookup (works when GUID is known/resolvable)
+  if guid and guid ~= "" and GetPlayerInfoByGUID then
+    local _, classFile = GetPlayerInfoByGUID(guid)
+    classFile = _NormalizeClass(classFile)
+    if classFile then return classFile end
+  end
+
+  return nil
+end
+
 local function BuildPlayers()
   local out = {}
   local data = DB:GetData()
@@ -189,7 +280,8 @@ local function BuildPlayers()
     local e = it.v
     out[#out+1] = {
       _key = it.k,
-      name = e.name,
+      _class = (e and e.class) or _GuessClassFor(e.name, nil),
+      name = _ColorizeName(e.name, (e and e.class) or _GuessClassFor(e.name, nil)),
       type = e.type,
       -- reason hidden in UI
 
@@ -227,7 +319,7 @@ local function BuildLastAttackers(limit)
     local e = list[i]
     items[#items+1] = {
       _key = (e.name or ""):lower(),
-      name = e.name or "",
+      name = _ColorizeName(e.name or "", _NormalizeClass(e.class) or _GuessClassFor(e.name, e.guid)),
       guild = e.guild or "",
       zone = e.zone or "",
     }
@@ -315,6 +407,7 @@ local function UpdateAddState()
   if txt ~= "" then
     exists = ((DB.HasPlayer and DB:HasPlayer(txt)) or (DB.LookupPlayer and DB:LookupPlayer(txt) ~= nil) or false)
   elseif UnitExists("target") and UnitIsPlayer("target") then
+  elseif (not (nameBox.HasFocus and nameBox:HasFocus())) and UnitExists("target") and UnitIsPlayer("target") then
     local tName = UnitName("target")
     if tName and tName ~= "" then
       exists = ((DB.HasPlayer and DB:HasPlayer(tName)) or (DB.LookupPlayer and DB:LookupPlayer(tName) ~= nil) or false)
@@ -447,6 +540,27 @@ local pPlayers = CreateFrame("Frame", nil, frame)
 
   addBtn:SetScript("OnClick", function()
     local name = (nameBox:GetText() or ""):gsub("^%s+", ""):gsub("%s+$", "")
+  local classFile
+  local targetName = (UnitExists("target") and UnitIsPlayer("target")) and (UnitName("target")) or nil
+  local targetClass = (targetName and select(2, UnitClass("target"))) or nil
+
+  -- If we are targeting the same player we're adding (or name is blank), prefer the target's class.
+  if targetName and targetClass then
+    if name == "" then
+      classFile = targetClass
+    else
+      local n1 = name:lower()
+      local n2 = targetName:lower()
+      if n1 == n2 then
+        classFile = targetClass
+      end
+    end
+  end
+
+  -- Otherwise, fall back to any cached/guessed class
+  if not classFile then
+    classFile = _GuessClassFor(name ~= "" and name or (targetName or ""), nil)
+  end
     if name == "" then
       -- If nothing typed, add current target (player only)
       if UnitExists("target") and UnitIsPlayer("target") then
@@ -459,7 +573,7 @@ local pPlayers = CreateFrame("Frame", nil, frame)
     end
     if name == "" then return end
     if ((DB.HasPlayer and DB:HasPlayer(name)) or (DB.LookupPlayer and DB:LookupPlayer(name) ~= nil) or false) then UpdateAddState(); return end
-    DB:AddPlayer(name, L.KOS, nil, UnitName("player"))
+    DB:AddPlayer(name, L.KOS, nil, UnitName("player"), classFile)
     nameBox:SetText("")
     GUI:RefreshAll()
     UpdateAddState()

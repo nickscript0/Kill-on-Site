@@ -5,6 +5,14 @@ local DB = KillOnSight_DB
 
 local Notifier = {}
 
+-- Local print helper (avoid relying on a global Print function)
+local function _Print(msg)
+  if DEFAULT_CHAT_FRAME and DEFAULT_CHAT_FRAME.AddMessage then
+    DEFAULT_CHAT_FRAME:AddMessage("|cff00d0ff"..(KillOnSight_L and KillOnSight_L.ADDON_PREFIX or "KILLONSIGHT")..":|r "..tostring(msg))
+  end
+end
+
+
 
 
 
@@ -87,7 +95,7 @@ local function EnsureSpyWarningFrame()
 
   -- Banner background
   local bg = f:CreateTexture(nil, "BACKGROUND")
-  bg:SetAllPoints(true)
+  bg:SetAllPoints()
   bg:SetColorTexture(0, 0, 0, 0.55)
   f.bg = bg
 
@@ -131,17 +139,172 @@ local function EnsureFlashFrame()
   flashFrame:SetAllPoints(UIParent)
   flashFrame:Hide()
   flashFrame.tex = flashFrame:CreateTexture(nil, "BACKGROUND")
-  flashFrame.tex:SetAllPoints(true)
+  flashFrame.tex:SetAllPoints()
   flashFrame.tex:SetColorTexture(1, 0, 0, 0.18)
 end
 
-local function Print(msg)
-  DEFAULT_CHAT_FRAME:AddMessage("|cff00d0ff"..L.ADDON_PREFIX..":|r "..msg)
+
+local function EnsureSpyAlertWindow()
+  if Notifier._spyAlertWindow then return Notifier._spyAlertWindow end
+
+  local f = CreateFrame("Frame", "KillOnSight_SpyAlertWindow", UIParent, "BackdropTemplate")
+  f:ClearAllPoints()
+  f:SetPoint("TOP", UIParent, "TOP", 0, -215)
+  f:SetClampedToScreen(true)
+  f:SetHeight(42)
+  f:Hide()
+
+  f:SetBackdrop({
+    bgFile = "Interface\\Tooltips\\UI-Tooltip-Background", tile = true, tileSize = 16,
+    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 8,
+    insets = { left = 2, right = 2, top = 2, bottom = 2 },
+  })
+  f:SetBackdropColor(0, 0, 0, 0.90)
+
+  f.Icon = CreateFrame("Frame", nil, f, "BackdropTemplate")
+  f.Icon:ClearAllPoints()
+  f.Icon:SetPoint("TOPLEFT", f, "TOPLEFT", 6, -5)
+  f.Icon:SetSize(32, 32)
+  f.Icon:SetBackdrop({ bgFile = "Interface\\Icons\\Ability_Stealth" })
+  f.Icon:SetBackdropColor(1, 1, 1, 0.5)
+
+  f.Title = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  f.Title:SetPoint("TOPLEFT", f, "TOPLEFT", 42, -3)
+  f.Title:SetHeight(12)
+  f.Title:SetText("Stealth player detected!")
+
+
+  f.Name = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  f.Name:SetPoint("TOPLEFT", f, "TOPLEFT", 42, -15)
+  f.Name:SetHeight(12)
+
+  f.Location = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  f.Location:SetPoint("TOPLEFT", f, "TOPLEFT", 42, -26)
+  f.Location:SetHeight(12)
+  f.Location:SetText("")
+
+  -- Visual styling (match Spy defaults)
+  local br, bg, bb, ba = 0.6, 0.2, 1.0, 0.4 -- Stealth Border
+  f:SetBackdropBorderColor(br, bg, bb, ba)
+  f.Title:SetTextColor(0.6, 0.2, 1.0, 1)     -- Stealth Text
+  f.Name:SetTextColor(1, 1, 1, 1)           -- Name Text
+  f.Location:SetTextColor(1, 0.82, 0, 1)    -- Location Text (unused for stealth)
+
+  Notifier._spyAlertWindow = f
+  return f
 end
 
+
+local function _FlashStopWindow(f)
+  if not f then return end
+  if f._flashTicker then
+    f._flashTicker:SetScript("OnUpdate", nil)
+    f._flashTicker:Hide()
+    f._flashTicker = nil
+  end
+end
+
+local function _FlashWindow(f)
+  if not f then return end
+  _FlashStopWindow(f)
+  local flash = CreateFrame("Frame", nil, f)
+  flash:SetAllPoints(f)
+  flash:Hide()
+  flash:SetAlpha(0.65)
+  flash.elapsed = 0
+  flash:SetScript("OnUpdate", function(self, dt)
+    self.elapsed = self.elapsed + dt
+    local a = 0.65 * (1 - (self.elapsed / 0.55))
+    if a <= 0 then
+      self:SetScript("OnUpdate", nil)
+      self:Hide()
+    else
+      self:SetAlpha(a)
+    end
+  end)
+  f._flashTicker = flash
+  flash:Show()
+end
+
+function Notifier:ShowSpyStealthAlert(name, classFile)
+  local f = EnsureSpyAlertWindow()
+
+  -- Title (localized)
+  if f.Title and f.Title.SetText then
+    f.Title:SetText((L and L.STEALTH_DETECTED_TITLE) or "Stealth player detected!")
+  end
+
+  -- Apply class-colored name (Spy-style)
+  local coloredName = ColorizeName(name, classFile)
+  if f.Name and f.Name.SetText then
+    f.Name:SetText(coloredName or (name or ""))
+    -- Name position (no class icon)
+    f.Name:SetPoint("TOPLEFT", f, "TOPLEFT", 42, -15)
+  end
+
+  -- Hide the optional location line for stealth (Spy behavior)
+  if f.Location and f.Location.SetText then
+    f.Location:SetText("")
+  end
+
+  -- Width = max(title, name) + 52 (Spy formula)
+  local titleW = (f.Title and f.Title.GetStringWidth and f.Title:GetStringWidth()) or 0
+  local nameW  = (f.Name and f.Name.GetStringWidth and f.Name:GetStringWidth()) or 0
+  local w = math.max(titleW, nameW) + 52
+  if w < 180 then w = 180 end -- keep readable minimum
+  f:SetWidth(w)
+  if f.Name and f.Name.SetWidth then f.Name:SetWidth(f:GetWidth() - 52) end
+  if f.Location and f.Location.SetWidth then f.Location:SetWidth(f:GetWidth() - 52) end
+
+  -- Show + animate (hold then fade)
+  f:Show()
+  f:SetAlpha(1)
+
+  local hold, fade = 6.0, 1.2
+  if self.GetStealthTiming then
+    local h, fd = self:GetStealthTiming()
+    if h then hold = h end
+    if fd then fade = fd end
+  end
+
+  -- cancel any existing animation
+  if f._kosStealthAnim and f._kosStealthAnim.Cancel then
+    f._kosStealthAnim:Cancel()
+  end
+
+  -- Start flash pulse (small overlay)
+  _FlashWindow(f)
+
+  -- Hold, then fade out smoothly
+  if C_Timer and C_Timer.After then
+    f._kosStealthAnim = C_Timer.NewTimer(hold, function()
+      if not f or not f.IsShown or not f:IsShown() then return end
+      local t = 0
+      f:SetScript("OnUpdate", function(self, elapsed)
+        t = t + elapsed
+        local p = t / fade
+        if p >= 1 then
+          self:SetScript("OnUpdate", nil)
+          self:Hide()
+          self:SetAlpha(1)
+          return
+        end
+        self:SetAlpha(1 - p)
+      end)
+    end)
+  else
+    -- fallback: no timer API, just show
+  end
+end
+
+
+
+-------------------------------------------------
+-- Spy-style Stealth Alert Frame (Classic-safe)
+-------------------------------------------------
 function Notifier:Chat(msg)
   if DB:GetProfile().printToChat then
-    Print(msg)
+    _Print(msg)
   end
 end
 
@@ -170,14 +333,6 @@ end
 
 function Notifier:NotifyPlayer(listType, name, reason)
   local suffix = reason and (" - "..reason) or ""
-
--- Anti-spam: suppress repeated alerts for the same KoS/Guild target
-local prof = DB:GetProfile()
-local cd = tonumber(prof.kosAlertCooldownSeconds) or 30
-local k = ("p:" .. tostring(name or ""):lower())
-if cd > 0 and not ShouldAlertOnce(k, cd) then
-  return
-end
   self:Chat(string.format(L.SEEN, listType, name, suffix))
   self:Sound()
   self:Flash()
@@ -192,14 +347,6 @@ end
 
 function Notifier:NotifyGuild(listType, name, guild, reason)
   local suffix = reason and (" - "..reason) or ""
-
--- Anti-spam: suppress repeated alerts for the same guild KoS target
-local prof = DB:GetProfile()
-local cd = tonumber(prof.guildAlertCooldownSeconds) or 30
-local k = ("g:" .. tostring(guild or ""):lower() .. ":" .. tostring(name or ""):lower())
-if cd > 0 and not ShouldAlertOnce(k, cd) then
-  return
-end
   self:Chat(string.format(L.SEEN_GUILD, listType, name, guild, suffix))
   self:Sound()
   self:Flash()
@@ -315,12 +462,10 @@ function Notifier:NotifyHidden(name, spellName, guid)
 
   -- Chat output (Chat() respects printToChat)
   self:Chat(string.format(L.SEEN_HIDDEN, label .. coloredName))
-
-  -- Center warning banner
+  -- Spy-style stealth alert window
   if prof.stealthDetectCenterWarning ~= false then
-    self:CenterWarning(string.format(L.SEEN_HIDDEN, label .. coloredName))
+    self:ShowSpyStealthAlert(name, classFile)
   end
-
   -- Stealth sound
   if prof.enableSound and prof.stealthDetectSound ~= false then
     local ok = pcall(PlaySoundFile, "Interface\\AddOns\\KillOnSight\\Sounds\\detected-stealth.mp3", "Master")

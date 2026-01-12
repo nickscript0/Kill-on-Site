@@ -78,3 +78,5 @@ L.MSG_LOADED = "已加载。输入 /kos show"
 L.UI_NEARBY_HEADER = "名字 / 等级 / 时间"
 
 
+
+L.STEALTH_DETECTED_TITLE = "侦测到潜行玩家！"

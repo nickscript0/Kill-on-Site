@@ -78,3 +78,5 @@ L.MSG_LOADED = "Geladen. Tippe /kos show"
 L.UI_NEARBY_HEADER = "Name / Stufe / Zeit"
 
 
+
+L.STEALTH_DETECTED_TITLE = "Schleichender Spieler entdeckt!"

@@ -44,7 +44,12 @@ local function ShouldNotify(key)
 end
 
 local function GetUnitNameSafe(unit)
-  local name = UnitName(unit)
+  local name
+  if _G.GetUnitName then
+    name = GetUnitName(unit, true)
+  else
+    name = UnitName(unit)
+  end
   if not name or name == "" then return nil end
   return name
 end
@@ -86,6 +91,7 @@ end
 
   local playerEntry = DB:LookupPlayer(name)
   if playerEntry then
+    if classFile and DB.SetPlayerClass then DB:SetPlayerClass(name, classFile) end
     local key = ("p:"..name:lower())
     if ShouldNotify(key) then
       DB:MarkSeenPlayer(name)

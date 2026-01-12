@@ -78,3 +78,5 @@ L.MSG_LOADED = "Carregado. Digite /kos show"
 L.UI_NEARBY_HEADER = "Nome / Nível / Hora"
 
 
+
+L.STEALTH_DETECTED_TITLE = "Jogador furtivo detectado!"

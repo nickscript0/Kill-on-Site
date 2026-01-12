@@ -78,3 +78,5 @@ L.MSG_LOADED = "Загружено. Введите /kos show"
 L.UI_NEARBY_HEADER = "Имя / Уровень / Время"
 
 
+
+L.STEALTH_DETECTED_TITLE = "Обнаружен игрок в скрытности!"

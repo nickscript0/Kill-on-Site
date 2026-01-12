@@ -5,6 +5,132 @@ local DB = KillOnSight_DB
 
 local Notifier = {}
 
+-- Throttle table for stealth alert popups (per player)
+local stealthPopupAt = {}
+
+
+-- Spy-style flash implementation (copied from Spy)
+local SpyFrameFlashManager = CreateFrame("FRAME");
+local SPYFADEFRAMES = {};
+local SPYFLASHFRAMES = {};
+local SpyFrameFlashTimers = {};
+local SpyFrameFlashTimerRefCount = {};
+
+-- Fucntion to see if a frame is fading
+function SpyFrameIsFading(frame)
+	for index, value in pairs(SPYFADEFRAMES) do
+		if ( value == frame ) then
+			return 1;
+		end
+	end
+	return nil;
+end
+
+-- Function to stop flashing --
+local function SpyFrameFlashStop(frame)
+    tDeleteItem(SPYFLASHFRAMES, frame);
+    frame:SetAlpha(1.0);
+    frame.flashTimer = nil;
+    if (frame.syncId) then
+        SpyFrameFlashTimerRefCount[frame.syncId] = SpyFrameFlashTimerRefCount[frame.syncId]-1;
+        if (SpyFrameFlashTimerRefCount[frame.syncId] == 0) then
+            SpyFrameFlashTimers[frame.syncId] = nil;
+            SpyFrameFlashTimerRefCount[frame.syncId] = nil;
+        end
+        frame.syncId = nil;
+    end
+    if ( frame.showWhenDone ) then
+        frame:Show();
+    else
+        frame:Hide();
+    end
+end
+
+-- Call every frame to update flashing frames  --
+local function SpyFrameFlash_OnUpdate(self, elapsed)
+    local frame;
+    local index = #SPYFLASHFRAMES;
+     
+    -- Update timers for all synced frames
+    for syncId, timer in pairs(SpyFrameFlashTimers) do
+        SpyFrameFlashTimers[syncId] = timer + elapsed;
+    end
+     
+    while SPYFLASHFRAMES[index] do
+        frame = SPYFLASHFRAMES[index];
+        frame.flashTimer = frame.flashTimer + elapsed;
+        if ( (frame.flashTimer > frame.flashDuration) and frame.flashDuration ~= -1 ) then
+            SpyFrameFlashStop(frame);
+        else
+            local flashTime = frame.flashTimer;
+            local alpha;
+            if (frame.syncId) then
+                flashTime = SpyFrameFlashTimers[frame.syncId];
+            end
+            flashTime = flashTime%(frame.fadeInTime+frame.fadeOutTime+(frame.flashInHoldTime or 0)+(frame.flashOutHoldTime or 0));
+            if (flashTime < frame.fadeInTime) then
+                alpha = flashTime/frame.fadeInTime;
+            elseif (flashTime < frame.fadeInTime+(frame.flashInHoldTime or 0)) then
+                alpha = 1;
+            elseif (flashTime < frame.fadeInTime+(frame.flashInHoldTime or 0)+frame.fadeOutTime) then
+                alpha = 1 - ((flashTime - frame.fadeInTime - (frame.flashInHoldTime or 0))/frame.fadeOutTime);
+            else
+                alpha = 0;
+            end
+            frame:SetAlpha(alpha);
+            frame:Show();
+        end
+        -- Loop in reverse so that removing frames is safe
+        index = index - 1;
+    end
+    if ( #SPYFLASHFRAMES == 0 ) then
+        self:SetScript("OnUpdate", nil);
+    end
+end
+
+-- Function to start a frame flashing
+local function SpyFrameFlash(frame, fadeInTime, fadeOutTime, flashDuration, showWhenDone, flashInHoldTime, flashOutHoldTime, syncId)
+    if ( frame ) then
+        local index = 1;
+        -- If frame is already set to flash then return
+        while SPYFLASHFRAMES[index] do		
+            if ( SPYFLASHFRAMES[index] == frame ) then
+                return;
+            end
+            index = index + 1;
+        end
+        if (syncId) then
+            frame.syncId = syncId;
+            if (SpyFrameFlashTimers[syncId] == nil) then
+                SpyFrameFlashTimers[syncId] = 0;
+                SpyFrameFlashTimerRefCount[syncId] = 0;
+            end
+            SpyFrameFlashTimerRefCount[syncId] = SpyFrameFlashTimerRefCount[syncId]+1;
+        else
+            frame.syncId = nil;
+        end
+        -- Time it takes to fade in a flashing frame
+        frame.fadeInTime = fadeInTime;
+        -- Time it takes to fade out a flashing frame
+        frame.fadeOutTime = fadeOutTime;
+        -- How long to keep the frame flashing
+        frame.flashDuration = flashDuration;
+        -- Show the flashing frame when the fadeOutTime has passed
+        frame.showWhenDone = showWhenDone;
+        -- Internal timer
+        frame.flashTimer = 0;
+        -- How long to hold the faded in state
+        frame.flashInHoldTime = flashInHoldTime;
+        -- How long to hold the faded out state
+        frame.flashOutHoldTime = flashOutHoldTime;
+         
+        tinsert(SPYFLASHFRAMES, frame);		
+         
+       SpyFrameFlashManager:SetScript("OnUpdate", SpyFrameFlash_OnUpdate);
+    end
+end
+
+
 
 
 
@@ -123,6 +249,82 @@ local function EnsureSpyWarningFrame()
   return f
 end
 
+
+-- Spy's compact alert window (used for stealth announcements)
+local function EnsureSpyAlertWindow()
+  if Notifier._spyAlertWindow then return Notifier._spyAlertWindow end
+
+  local f = CreateFrame("Frame", "KillOnSight_SpyAlertWindow", UIParent, "BackdropTemplate")
+  f:ClearAllPoints()
+  f:SetPoint("TOP", UIParent, "TOP", 0, -140)
+  f:SetClampedToScreen(true)
+  f:SetHeight(42)
+  f:Hide()
+
+  f:SetBackdrop({
+    bgFile = "Interface\\Tooltips\\UI-Tooltip-Background", tile = true, tileSize = 16,
+    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 8,
+    insets = { left = 2, right = 2, top = 2, bottom = 2 },
+  })
+  f:SetBackdropColor(0, 0, 0, 0.90)
+
+  f.Icon = CreateFrame("Frame", nil, f, "BackdropTemplate")
+  f.Icon:ClearAllPoints()
+  f.Icon:SetPoint("TOPLEFT", f, "TOPLEFT", 6, -5)
+  f.Icon:SetSize(32, 32)
+  f.Icon:SetBackdrop({ bgFile = "Interface\\Icons\\Ability_Stealth" })
+  f.Icon:SetBackdropColor(1, 1, 1, 0.5)
+
+  f.Title = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  f.Title:SetPoint("TOPLEFT", f, "TOPLEFT", 42, -3)
+  f.Title:SetHeight(12)
+  f.Title:SetText("Stealth player detected!")
+
+
+  f.Name = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  f.Name:SetPoint("TOPLEFT", f, "TOPLEFT", 42, -15)
+  f.Name:SetHeight(12)
+
+  f.Location = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  f.Location:SetPoint("TOPLEFT", f, "TOPLEFT", 42, -26)
+  f.Location:SetHeight(12)
+  f.Location:SetText("")
+
+  -- Visual styling (match Spy defaults)
+  local br, bg, bb, ba = 0.6, 0.2, 1.0, 0.4 -- Stealth Border
+  f:SetBackdropBorderColor(br, bg, bb, ba)
+  f.Title:SetTextColor(0.6, 0.2, 1.0, 1)     -- Stealth Text
+  f.Name:SetTextColor(1, 1, 1, 1)           -- Name Text
+  f.Location:SetTextColor(1, 0.82, 0, 1)    -- Location Text (unused for stealth)
+
+  Notifier._spyAlertWindow = f
+  return f
+end
+
+function Notifier:ShowSpyStealthAlert(name, classFile)
+  local f = EnsureSpyAlertWindow()
+  -- Apply class-colored name (Spy-style)
+  local coloredName = ColorizeName(name, classFile)
+  f.Name:SetText(coloredName or (name or ""))
+  -- Name position (no class icon)
+  f.Name:SetPoint("TOPLEFT", f, "TOPLEFT", 42, -15)
+
+  -- Width = max(title, name) + 52 (Spy formula)
+  f:SetWidth(f.Title:GetStringWidth() + 52)
+  if (f.Title:GetStringWidth() < f.Name:GetStringWidth()) then
+    f:SetWidth(f.Name:GetStringWidth() + 52)
+  else
+    f:SetWidth(f.Title:GetStringWidth() + 52)
+  end
+  f.Name:SetWidth(f:GetWidth() - 52)
+  f.Location:SetWidth(f:GetWidth() - 52)
+
+  SpyFrameFlashStop(f)
+  -- Spy uses (0,1,5,false,4,0) for stealth
+  SpyFrameFlash(f, 0, 1, 5, false, 4, 0)
+end
+
+
 local flashFrame
 
 local function EnsureFlashFrame()
@@ -180,7 +382,9 @@ if cd > 0 and not ShouldAlertOnce(k, cd) then
 end
   self:Chat(string.format(L.SEEN, listType, name, suffix))
   self:Sound()
-  self:Flash()
+  if allowPopup then
+    self:Flash()
+  end
 
   -- Ensure alerts also show in the Nearby list.
   -- Some detection paths can notify without the spy-like hostile scan having
@@ -202,7 +406,9 @@ if cd > 0 and not ShouldAlertOnce(k, cd) then
 end
   self:Chat(string.format(L.SEEN_GUILD, listType, name, guild, suffix))
   self:Sound()
-  self:Flash()
+  if allowPopup then
+    self:Flash()
+  end
 
   -- Ensure alerts also show in the Nearby list.
   if _G.KillOnSight_Nearby and _G.KillOnSight_Nearby.Seen then
@@ -316,20 +522,35 @@ function Notifier:NotifyHidden(name, spellName, guid)
   -- Chat output (Chat() respects printToChat)
   self:Chat(string.format(L.SEEN_HIDDEN, label .. coloredName))
 
-  -- Center warning banner
-  if prof.stealthDetectCenterWarning ~= false then
-    self:CenterWarning(string.format(L.SEEN_HIDDEN, label .. coloredName))
+  -- Center warning banner (Spy-style window) with per-player throttle so refreshes don't re-flash
+  local now = (GetTime and GetTime()) or 0
+  local popupKey = name and name:lower() or ""
+  local popupCooldown = prof.stealthDetectPopupCooldown or 20  -- seconds
+  local allowPopup = true
+  if popupKey ~= "" then
+    local last = stealthPopupAt[popupKey]
+    if last and (now - last) < popupCooldown then
+      allowPopup = false
+    else
+      stealthPopupAt[popupKey] = now
+    end
+  end
+
+  if prof.stealthDetectCenterWarning ~= false and allowPopup then
+    self:ShowSpyStealthAlert(name, classFile)
   end
 
   -- Stealth sound
-  if prof.enableSound and prof.stealthDetectSound ~= false then
+  if allowPopup and prof.enableSound and prof.stealthDetectSound ~= false then
     local ok = pcall(PlaySoundFile, "Interface\\AddOns\\KillOnSight\\Sounds\\detected-stealth.mp3", "Master")
     if not ok then
       PlaySound(SOUNDKIT.RAID_WARNING, "Master")
     end
   end
 
-  self:Flash()
+  if allowPopup then
+    self:Flash()
+  end
 
   -- Add to Nearby list (pass class so row can be colored/iconed)
   if prof.stealthDetectAddToNearby ~= false then

@@ -526,7 +526,6 @@ local function UpdateScroll(self)
       -- Secure targeting: only set while out of combat (protected in combat).
       if row.SetAttribute and (not (InCombatLockdown and InCombatLockdown())) then
         row:SetAttribute("type1", "macro")
-        row:SetAttribute("macrotext1", "/targetexact " .. (e.name or ""))
       end
 
       row.text:SetText(RowLabel(e, tNow))
@@ -565,12 +564,14 @@ local function UpdateScroll(self)
       -- Clear unused row
       row.text:SetText("")
       row.entry = nil
+      if row.SetAttribute and (not (InCombatLockdown and InCombatLockdown())) then
+        row:SetAttribute("macrotext", "/targetexact nil")
+      end
       row:SetAlpha(0)
       SafeEnableMouse(row, false)
       if row.icon then row.icon:Hide() end
       if row.skull then row.skull:Hide() end
       if row.SetAttribute and (not (InCombatLockdown and InCombatLockdown())) then
-        row:SetAttribute("macrotext1", nil)
         row:SetAttribute("type1", nil)
       end
       -- do not call :Hide() (protected)
@@ -582,6 +583,9 @@ local function UpdateScroll(self)
     local row = self.rows[i]
     if row then
       row.entry = nil
+      if row.SetAttribute and (not (InCombatLockdown and InCombatLockdown())) then
+        row:SetAttribute("macrotext", "/targetexact nil")
+      end
       row.text:SetText("")
       row:SetAlpha(0)
       SafeEnableMouse(row, false)
@@ -589,7 +593,6 @@ local function UpdateScroll(self)
       if row.skull then row.skull:Hide() end
       if row.SetAttribute and (not (InCombatLockdown and InCombatLockdown())) then
         row:SetAttribute("type1", nil)
-        row:SetAttribute("macrotext1", nil)
       end
     end
   end
@@ -601,7 +604,7 @@ function Nearby:Create()
   if self.frame then return end
 
   local f = CreateFrame("Frame", "KillOnSight_NearbyFrame", UIParent, "BackdropTemplate")
-  f:SetSize(216, 220)
+  f:SetSize(216, 484)
   f:SetFrameStrata("MEDIUM")
   f:SetClampedToScreen(true)
   MakeBackdrop(f)
@@ -621,7 +624,7 @@ function Nearby:Create()
   local header = CreateFrame("Frame", nil, f, "BackdropTemplate")
   self.headerFrame = header
   self.headerFrame = header
-  header:SetHeight(18)
+  header:SetHeight(282)
   header:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8" })
   header:SetBackdropColor(1,1,1,0.06)
 
@@ -655,9 +658,26 @@ function Nearby:Create()
     UpdateScroll(self)
   end)
   -- Rows
-  for i=1,8 do
+  for i=1,20 do
     local b = CreateFrame("Button", nil, f, "SecureActionButtonTemplate")
-    b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    b:RegisterForClicks("AnyDown", "AnyUp")
+
+-- Spy-style secure targeting setup
+b:SetAttribute("type1", "macro")
+b:SetAttribute("macrotext", "/targetexact nil")
+
+b:SetScript("PreClick", function(selfBtn, button)
+  if button ~= "LeftButton" then return end
+  local e = selfBtn.entry
+  if not e then return end
+  -- Use full cross-realm name when available; fall back to short name.
+  local tname = e.fullName or e.name or ""
+  if tname == "" then return end
+  -- Strip any accidental color codes.
+  tname = tname:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+  -- Set macrotext just-in-time like Spy does.
+  selfBtn:SetAttribute("macrotext", "/targetexact " .. tname)
+end)
     b:SetPoint("TOPLEFT", 12, -56 - (i-1)*22)
     b:SetSize(180, 22)
 
@@ -767,6 +787,7 @@ end
 
 function Nearby:Seen(name, classFile, guild, kosType, level)
   if not name or name == "" then return end
+  local rawName = name
   if not self.frame then self:Create() end
 
   local DB = GetDB()
@@ -798,6 +819,7 @@ end
     isNew = true
   end
 
+  e.fullName = rawName or e.fullName
   e.class = NormalizeClass(classFile) or e.class
   e.guild = guild or e.guild
   e.kosType = kosType or e.kosType

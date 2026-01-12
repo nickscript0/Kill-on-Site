@@ -1,3 +1,34 @@
+
+-------------------------------------------------
+-- Class Colors
+-------------------------------------------------
+local function _ColorizeByClass(name, classFile)
+  if not name then return "" end
+  if classFile and RAID_CLASS_COLORS and RAID_CLASS_COLORS[classFile] then
+    local c = RAID_CLASS_COLORS[classFile]
+    return string.format("|cff%02x%02x%02x%s|r", c.r*255, c.g*255, c.b*255, name)
+  end
+  return name
+end
+
+
+-------------------------------------------------
+-- Class Icons
+-------------------------------------------------
+local CLASS_ICON_TEXTURE = "Interface\\GLUES\\CHARACTERCREATE\\UI-CHARACTERCREATE-CLASSES"
+
+local function _ApplyClassIcon(tex, classFile)
+  if not tex then return end
+  if not classFile or not CLASS_ICON_TCOORDS or not CLASS_ICON_TCOORDS[classFile] then
+    tex:Hide()
+    return
+  end
+  local c = CLASS_ICON_TCOORDS[classFile]
+  tex:SetTexture(CLASS_ICON_TEXTURE)
+  tex:SetTexCoord(c[1], c[2], c[3], c[4])
+  tex:Show()
+end
+
 -- GUI.lua
 local ADDON_NAME = ...
 local L = KillOnSight_L
@@ -127,6 +158,15 @@ local function CreateScrollList(parent, columns)
         local fs = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         fs:SetPoint("LEFT", xx, 0)
         fs:SetWidth(col.width)
+      if col.key == "name" then
+        r.classIcon = r:CreateTexture(nil, "ARTWORK")
+        r.classIcon:SetSize(14, 14)
+        r.classIcon:SetPoint("LEFT", xx + 2, 0)
+        r.classIcon:Hide()
+        fs:ClearAllPoints()
+        fs:SetPoint("LEFT", xx + 18, 0)
+        fs:SetWidth(col.width - 18)
+      end
         fs:SetJustifyH("LEFT")
         fs:SetText("")
         r.cols[col.key] = fs
@@ -163,6 +203,9 @@ local function CreateScrollList(parent, columns)
         for _,col in ipairs(columns) do
           local v = item[col.key]
           row.cols[col.key]:SetText(v or "")
+          if col.key == "name" and row.classIcon then
+            _ApplyClassIcon(row.classIcon, item._class)
+          end
         end
         row:Show()
       end
@@ -189,7 +232,8 @@ local function BuildPlayers()
     local e = it.v
     out[#out+1] = {
       _key = it.k,
-      name = e.name,
+      _class = e.class,
+      name = _ColorizeByClass(e.name, e.class),
       type = e.type,
       -- reason hidden in UI
 
@@ -227,7 +271,8 @@ local function BuildLastAttackers(limit)
     local e = list[i]
     items[#items+1] = {
       _key = (e.name or ""):lower(),
-      name = e.name or "",
+      _class = e.class,
+      name = _ColorizeByClass(e.name or "", e.class),
       guild = e.guild or "",
       zone = e.zone or "",
     }
@@ -447,6 +492,25 @@ local pPlayers = CreateFrame("Frame", nil, frame)
 
   addBtn:SetScript("OnClick", function()
     local name = (nameBox:GetText() or ""):gsub("^%s+", ""):gsub("%s+$", "")
+  local classFile
+  local targetName = (UnitExists("target") and UnitIsPlayer("target")) and (UnitName("target")) or nil
+  local targetClass = (targetName and select(2, UnitClass("target"))) or nil
+
+  if targetName and targetClass then
+    if name == "" then
+      classFile = targetClass
+    else
+      local n1 = name:lower()
+      local n2 = targetName:lower()
+      if n1 == n2 then
+        classFile = targetClass
+      end
+    end
+  end
+
+  if not classFile then
+    classFile = _GuessClassFor(name ~= "" and name or (targetName or ""), nil)
+  end
     if name == "" then
       -- If nothing typed, add current target (player only)
       if UnitExists("target") and UnitIsPlayer("target") then
@@ -459,7 +523,7 @@ local pPlayers = CreateFrame("Frame", nil, frame)
     end
     if name == "" then return end
     if ((DB.HasPlayer and DB:HasPlayer(name)) or (DB.LookupPlayer and DB:LookupPlayer(name) ~= nil) or false) then UpdateAddState(); return end
-    DB:AddPlayer(name, L.KOS, nil, UnitName("player"))
+    DB:AddPlayer(name, L.KOS, nil, UnitName("player"), classFile)
     nameBox:SetText("")
     GUI:RefreshAll()
     UpdateAddState()

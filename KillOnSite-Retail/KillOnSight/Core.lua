@@ -325,6 +325,35 @@ local function ShouldCLSeen(nameLower, now)
   return true
 end
 
+
+-------------------------------------------------
+-- Spy-style Combat Log Event Filtering
+-------------------------------------------------
+local SPY_COMBAT_EVENTS = {
+  SWING_DAMAGE = true,
+  RANGE_DAMAGE = true,
+  SPELL_DAMAGE = true,
+  SPELL_PERIODIC_DAMAGE = true,
+  SPELL_AURA_APPLIED = true,
+  SPELL_AURA_REFRESH = true,
+}
+
+local function IsSpyRelevantEvent(subevent)
+  return subevent and SPY_COMBAT_EVENTS[subevent] == true
+end
+
+local function CleanShortName(n)
+  if not n or n == "" then return nil end
+  return n:match("^[^-]+") or n
+end
+
+local function IsSpyHostilePlayer(flags, guid, name)
+  if not flags or not guid or not name then return false end
+  if not IsFlagPlayer(flags) then return false end
+  if not IsFlagHostileSpy(flags) then return false end
+  return true
+end
+
 local function ShouldCLNotify(key, now, cooldown)
   local last = clNotifyAt[key]
   if last and (now - last) < cooldown then return false end
@@ -436,10 +465,19 @@ local function HandleCombatLog()
     end
   end
 
-  HandleName(srcName, srcFlags, srcGUID)
-  HandleName(dstName, dstFlags, dstGUID)
+  -- Spy-style filtering: only process relevant combat events and hostile player units.
+  if not IsSpyRelevantEvent(subevent) then return end
+  local sName = CleanShortName(srcName)
+  local dName = CleanShortName(dstName)
+  if IsSpyHostilePlayer(srcFlags, srcGUID, sName) then
+    HandleName(sName, srcFlags, srcGUID)
+  end
+  if IsSpyHostilePlayer(dstFlags, dstGUID, dName) then
+    HandleName(dName, dstFlags, dstGUID)
+  end
 
-  -- Keep the old "Last attackers" tracking, but only when the player is the victim.
+  -- Spy-style "Last attackers" tracking: only for damage-like events when the player is the victim.
+  if not (subevent == "SWING_DAMAGE" or subevent == "RANGE_DAMAGE" or subevent == "SPELL_DAMAGE" or subevent == "SPELL_PERIODIC_DAMAGE") then return end
   local playerGUID = UnitGUID("player")
   if not playerGUID or dstGUID ~= playerGUID then return end
   if not srcName or srcName == "" then return end
@@ -462,7 +500,12 @@ local function HandleCombatLog()
       end
     end
   end
-  DB:AddLastAttacker(srcName, srcGUID, (GetRealZoneText and GetRealZoneText()) or "", guildName)
+  local classFile = nil
+  if srcGUID and _G.GetPlayerInfoByGUID then
+    local _, classTag = GetPlayerInfoByGUID(srcGUID)
+    classFile = classTag
+  end
+  DB:AddLastAttacker(srcName, srcGUID, (GetRealZoneText and GetRealZoneText()) or "", guildName, classFile)
 end
 
 Core:SetScript("OnEvent", function(self, event, ...)

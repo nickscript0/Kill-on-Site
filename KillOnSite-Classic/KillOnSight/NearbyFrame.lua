@@ -655,7 +655,7 @@ function Nearby:Create()
     UpdateScroll(self)
   end)
   -- Rows
-  for i=1,8 do
+  for i=1,20 do
     local b = CreateFrame("Button", nil, f, "SecureActionButtonTemplate")
     b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     b:SetPoint("TOPLEFT", 12, -56 - (i-1)*22)

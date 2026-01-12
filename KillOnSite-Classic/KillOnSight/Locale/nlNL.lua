@@ -78,3 +78,5 @@ L.MSG_LOADED = "Geladen. Typ /kos show"
 L.UI_NEARBY_HEADER = "Naam / Level / Tijd"
 
 
+
+L.STEALTH_DETECTED_TITLE = "Sluipende speler gedetecteerd!"

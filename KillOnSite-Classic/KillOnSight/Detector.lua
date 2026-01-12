@@ -69,9 +69,11 @@ function Detector:CheckUnit(unit)
 local name = GetUnitNameSafe(unit)
 if not name then return end
 
+
+  local classFile = UnitIsPlayer(unit) and select(2, UnitClass(unit)) or nil
 -- Nearby list (hostile players)
 if UnitIsPlayer(unit) and UnitCanAttack("player", unit) then
-  local classFile = select(2, UnitClass(unit))
+  -- classFile computed once above
   local guild = GetUnitGuild(unit)
   if guild and guild ~= "" and DB.UpdateLastAttackerGuild then
     DB:UpdateLastAttackerGuild(name, guild)
@@ -91,6 +93,7 @@ end
 
   local playerEntry = DB:LookupPlayer(name)
   if playerEntry then
+    if classFile and DB.SetPlayerClass then DB:SetPlayerClass(name, classFile) end
     local key = ("p:"..name:lower())
     if ShouldNotify(key) then
       DB:MarkSeenPlayer(name)

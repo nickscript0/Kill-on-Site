@@ -178,10 +178,12 @@ function DB:_PushChange(op, kind, key, entry)
 end
 
 
-local function MakePlayerEntry(name, listType, reason, addedBy, existing)
+local function MakePlayerEntry(name, listType, reason, addedBy, existing, class)
   return {
     name = name,
-    type = listType or L.KOS,
+    
+    class = class or (existing and existing.class) or nil,
+type = listType or L.KOS,
     reason = norm(reason),
     addedBy = addedBy or UnitName("player") or "Unknown",
     addedAt = existing and existing.addedAt or Now(),
@@ -204,17 +206,33 @@ local function MakeGuildEntry(guild, listType, reason, addedBy, existing)
   }
 end
 
-function DB:AddPlayer(name, listType, reason, addedBy)
+function DB:AddPlayer(name, listType, reason, addedBy, class)
   name = norm(name); if not name then return false end
   local key = name:lower()
   local d = self:GetData()
   local existing = d.players[key]
-  local entry = MakePlayerEntry(name, listType, reason, addedBy, existing)
+  local entry = MakePlayerEntry(name, listType, reason, addedBy, existing, class)
   d.players[key] = entry
   self:_IncRevision()
   self:_PushChange("upsert","P",key,entry)
   return true
 end
+
+function DB:SetPlayerClass(name, class)
+  if not name or not class then return false end
+  local key = name:lower()
+  local d = self:GetData()
+  local e = d.players[key]
+  if not e then return false end
+  if e.class == class then return false end
+  e.class = class
+  e.modifiedAt = Now and Now() or time()
+  self:_IncRevision()
+  self:_PushChange("upsert","P",key,e)
+  return true
+end
+
+
 
 function DB:RemovePlayer(name)
   name = norm(name); if not name then return false end
@@ -311,26 +329,30 @@ function DB:ApplyRemoteChange(sender, change)
 end
 
 
-function DB:AddLastAttacker(name, guid, zone, guild)
+function DB:AddLastAttacker(name, guid, zone, guild, classFile)
   if not name or name == "" then return end
   local d = self:GetData()
   d.lastAttackers = d.lastAttackers or {}
   local keyName = name:lower()
   local keyGUID = (guid and guid ~= "") and guid or nil
 
+  local priorClass
+
   -- remove existing entry (prefer GUID match when available)
   for j = #d.lastAttackers, 1, -1 do
     local e = d.lastAttackers[j]
     if e then
       if keyGUID and e.guid == keyGUID then
+        priorClass = priorClass or (e and e.class)
         table.remove(d.lastAttackers, j)
       elseif (not keyGUID) and e.name and e.name:lower() == keyName then
+        priorClass = priorClass or (e and e.class)
         table.remove(d.lastAttackers, j)
       end
     end
   end
 
-  table.insert(d.lastAttackers, 1, { name = name, guid = guid or "", zone = zone or "", guild = guild or "" })
+  table.insert(d.lastAttackers, 1, { name = name, guid = guid or "", zone = zone or "", guild = guild or "", class = classFile or priorClass })
 
   -- cap
   while #d.lastAttackers > 50 do

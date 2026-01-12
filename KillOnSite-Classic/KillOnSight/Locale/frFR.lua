@@ -78,3 +78,5 @@ L.MSG_LOADED = "Chargé. Tapez /kos show"
 L.UI_NEARBY_HEADER = "Nom / Niveau / Heure"
 
 
+
+L.STEALTH_DETECTED_TITLE = "Joueur en camouflage détecté !"

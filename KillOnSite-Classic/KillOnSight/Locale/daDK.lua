@@ -78,3 +78,5 @@ L.MSG_LOADED = "Indlæst. Skriv /kos show"
 L.UI_NEARBY_HEADER = "Navn / Level / Tid"
 
 
+
+L.STEALTH_DETECTED_TITLE = "Skjult spiller opdaget!"
