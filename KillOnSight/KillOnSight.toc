@@ -1,6 +1,6 @@
-## Interface: 20505
+## Interface: 110207
 ## Title: Kill on Sight
-## Notes: Kill on Sight notifier and tracking addon (Classic)
+## Notes: Kill on Sight notifier and tracking addon (Retail)
 ## Author: Milestorme
 ## Version: 3.0.2
 ## SavedVariables: KillOnSightDB
@@ -14,13 +14,14 @@ Locale/ptBR.lua
 Locale/ruRU.lua
 Locale/zhCN.lua
 Locale/esES.lua
+Locale/esMX.lua
 Locale/frFR.lua
 Locale/deDE.lua
 Locale/koKR.lua
 Locale/nlNL.lua
 Locale/daDK.lua
-Database.lua
 Util.lua
+Database.lua
 Notifier.lua
 NearbyFrame.lua
 Detector.lua

@@ -6,6 +6,16 @@ local L = KillOnSight_L
 local function GetDB() return _G.KillOnSight_DB end
 local function GetNotifier() return _G.KillOnSight_Notifier end
 
+-- Sanctuary detection: prevent Nearby population and clear the list in safe "sanctuary" areas.
+-- Prefer GetZonePVPInfo() which can return "sanctuary"; fall back to IsResting() in versions/zones
+-- where that is the only reliable signal.
+local function IsInSanctuary()
+  local pvpType = (GetZonePVPInfo and GetZonePVPInfo())
+  if pvpType == "sanctuary" then return true end
+  if IsResting and IsResting() then return true end
+  return false
+end
+
 local Nearby = {
   frame = nil,
   scroll = nil,
@@ -785,6 +795,18 @@ function Nearby:Create()
   self.frame = f
   self:ApplyPosition()
 
+  -- Watch for sanctuary/resting transitions so we can clear/disable Nearby in safe zones.
+  if not self._zoneEventFrame then
+    local zf = CreateFrame("Frame")
+    zf:RegisterEvent("ZONE_CHANGED")
+    zf:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+    zf:RegisterEvent("PLAYER_UPDATE_RESTING")
+    zf:SetScript("OnEvent", function()
+      Nearby:HandleSanctuaryChange()
+    end)
+    self._zoneEventFrame = zf
+  end
+
   local DB = GetDB()
   local prof = DB and DB:GetProfile()
   self:SetLocked(prof and prof.nearbyFrameLocked)
@@ -795,11 +817,15 @@ function Nearby:Create()
     f:Show()
   end
 
+  -- Apply sanctuary rule immediately on creation.
+  self:HandleSanctuaryChange()
+
   UpdateScroll(self)
   self:ApplyAlpha()
   self:ApplyLocked()
   self:ApplyMinimalMode()
   self:StartTicker()
+  self:HandleSanctuaryChange()
   self:Refresh() -- apply auto-hide immediately
 end
 
@@ -812,6 +838,31 @@ function Nearby:ScheduleRefresh()
   end)
 end
 
+function Nearby:ClearAll(opts)
+  opts = opts or {}
+  self.entries = {}
+  self.alerted = {}
+  self.orderCounter = 0
+  -- Hide immediately in sanctuary mode unless caller requests otherwise.
+  if self.frame and not opts.keepShown then
+    SafeSetShown(self.frame, false)
+  end
+  self:ScheduleRefresh()
+end
+
+function Nearby:HandleSanctuaryChange()
+  if not self.frame then return end
+  local inSanct = IsInSanctuary()
+  if inSanct then
+    -- Disable + clear list while in sanctuary.
+    if next(self.entries) ~= nil then
+      self:ClearAll({ keepShown = false })
+    else
+      SafeSetShown(self.frame, false)
+    end
+  end
+end
+
 function Nearby:Seen(name, classFile, guild, kosType, level)
   if not name or name == "" then return end
   if not self.frame then self:Create() end
@@ -820,6 +871,16 @@ function Nearby:Seen(name, classFile, guild, kosType, level)
   if not DB then return end
   local prof = DB:GetProfile()
   if prof.showNearbyFrame == false then return end
+
+  -- Do not populate Nearby while in a sanctuary area; also clear/hide if needed.
+  if IsInSanctuary() then
+    if next(self.entries) ~= nil then
+      self:ClearAll({ keepShown = false })
+    elseif self.frame and self.frame:IsShown() then
+      SafeSetShown(self.frame, false)
+    end
+    return
+  end
 
   local now = Now()
   local ttl = ACTIVE_TTL -- seconds to keep a player in the list since last sighting
