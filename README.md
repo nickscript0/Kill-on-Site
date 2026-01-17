@@ -1,4 +1,4 @@
-# KillOnSight (3.0.1)
+# KillOnSight
 
 **KillOnSight** is a lightweight, real-time player awareness addon for World of Warcraft.  
 It helps you identify hostile, Kill-on-Sight (KoS), guild-marked, and stealthed players nearby with clear visual and audio alerts — without cluttering your UI.
@@ -15,7 +15,6 @@ Designed for PvP awareness, Classic and Retail compatible, and optimized for per
 - Clean, minimal layout with readable names and spacing
 - Class-colored player names
 - KoS and Guild tags clearly marked
-- Stealthed enemies added via stealth detection show a small stealth icon inline (clears automatically once they become visible)
 - Inactive players fade/dim automatically
 - No countdown clutter — focused on presence, not noise
 - Scrolls only when the list exceeds the visible limit
@@ -37,20 +36,6 @@ Designed for PvP awareness, Classic and Retail compatible, and optimized for per
 - Optional addition of stealthed players to the Nearby list
 - Fully configurable timing (banner hold & fade)
 - All stealth options apply **live** — no `/reload` required
-
-
----
-
-### 📊 Enemy Stats
-- New Stats tab with win/loss tracking and encounter history
-- Virtualized list for smooth scrolling, even with large databases
-- Better data hygiene: class backfill for older entries; seen count never shows as 0 for real sightings
-
----
-
-### 🗡️ Attackers
-- Attackers tab only populates when an enemy actually attacks you (damage, miss/avoid, or hostile debuff on you)
-- Great for quickly identifying who opened on you during chaotic fights
 
 ---
 
@@ -74,7 +59,6 @@ Designed for PvP awareness, Classic and Retail compatible, and optimized for per
   - KoS & Guild options
   - Nearby window options
   - Stealth detection options
-- Minimal mode and auto-hide support for the Nearby window
 
 ---
 
@@ -83,7 +67,6 @@ Designed for PvP awareness, Classic and Retail compatible, and optimized for per
 - Efficient refresh logic (no excessive OnUpdate spam)
 - Clean row recycling to prevent UI artifacts
 - SavedVariables handled safely (written on reload/logout as per WoW behavior)
-- Bounded sync change log + optional stats pruning to prevent long-term SavedVariables bloat (pruning enabled by default)
 
 ---
 
