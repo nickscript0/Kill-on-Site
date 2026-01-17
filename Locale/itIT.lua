@@ -1,0 +1,125 @@
+-- Locale/itIT.lua
+local ADDON_NAME = ...
+KillOnSight_L_data = KillOnSight_L_data or {}
+KillOnSight_L_used = KillOnSight_L_used or {}
+KillOnSight_L = KillOnSight_L or {}
+
+if not KillOnSight_L.__kos_proxy then
+  KillOnSight_L.__kos_proxy = true
+  setmetatable(KillOnSight_L, {
+    __index = function(_, k)
+      KillOnSight_L_used[k] = true
+      local v = KillOnSight_L_data[k]
+      if v == nil then
+        return k -- fallback so missing keys are obvious
+      end
+      return v
+    end,
+  })
+end
+
+local L = KillOnSight_L_data
+
+if not (GetLocale() == "itIT") then return end
+
+L.ACTIVITY = "%s nelle vicinanze: %s (%s)%s"
+L.ADDED_GUILD = "Gilda aggiunta a %s: %s"
+L.ADDED_PLAYER = "Giocatore aggiunto a %s: %s"
+L.ADDON_PREFIX = "KILLONSIGHT"
+L.CMD_HELP = "Comandi: /kos help | show | add [nome] | remove <nome> | addguild <gilda> | removeguild <gilda> | list | sync | statsprune"
+L.GUILD_KOS = "Gilda-KoS"
+L.HIDDEN = "Nascosto"
+L.KOS = "KoS"
+L.NOT_FOUND = "Non trovato: %s"
+L.REMOVED_GUILD = "Gilda rimossa: %s"
+L.REMOVED_PLAYER = "Giocatore rimosso: %s"
+L.SEEN = "%s avvistato nelle vicinanze: %s%s"
+L.SEEN_GUILD = "Gilda di %s avvistata nelle vicinanze: %s (%s)%s"
+L.SEEN_HIDDEN = "Nascosto rilevato: %s"
+L.SYNC_COOLDOWN = "Sincronizzazione in recupero: %ds rimanenti."
+L.SYNC_DISABLED = "La sincronizzazione richiede un gruppo (party/raid) o una gilda."
+L.SYNC_DONE = "Sincronizzazione completata."
+L.SYNC_RECEIVED = "Dati di sincronizzazione ricevuti da %s."
+L.SYNC_SENT = "Richiesta di sincronizzazione inviata."
+L.UI_ADD = "Aggiungi"
+L.UI_ADD_GUILD = "Aggiungi gilda"
+L.UI_ADD_KOS = "Aggiungi KoS"
+L.UI_ALERT_NEW = "Avvisa per nuovo nemico nelle vicinanze"
+L.UI_ATTACKED_AT = "Attaccato"
+L.UI_CLEAR = "Pulisci"
+L.UI_CLOSE = "Chiudi"
+L.UI_FLASH = "Lampeggia"
+L.UI_GUILD = "Gilda"
+L.UI_INSTANCES = "Notifica nelle istanze"
+L.UI_ALERTS = "KoS / Gilda"
+L.UI_NEARBY_HEADING = "Nelle vicinanze"
+L.UI_LAST_SEEN = "Ultima volta visto"
+L.UI_CLASS = "Classe"
+L.UI_NAME = "Nome"
+L.UI_NEARBY_ALPHA = "Trasparenza vicinanze"
+L.UI_NEARBY_AUTOHIDE = "Nascondi automaticamente se vuoto"
+L.UI_NEARBY_FADE = "Dissolvenza in/​out"
+L.UI_NEARBY_FRAME = "Finestra vicinanze"
+L.UI_NEARBY_LOCK = "Blocca finestra vicinanze"
+L.UI_NEARBY_MINIMAL = "Finestra vicinanze ultra-minimale"
+L.UI_NEARBY_ROWFADE = "Timer dissolvenza per riga"
+L.UI_NEARBY_ROWICONS = "Icone riga (classe/teschio)"
+L.UI_NEARBY_SCALE = "Scala finestra vicinanze"
+L.UI_OPTIONS = "Opzioni"
+L.UI_REMOVE = "Rimuovi"
+L.UI_SOUND = "Suono"
+L.UI_STEALTH = "Rilevamento furtività"
+L.UI_STEALTH_ADD_NEARBY = "Aggiungi nascosti alla lista Vicinanze"
+L.UI_STEALTH_BANNER = "Mostra avviso centrale"
+L.UI_STEALTH_CHAT = "Notifica in chat"
+L.UI_STEALTH_ENABLE = "Abilita rilevamento furtività"
+L.UI_STEALTH_FADE = "Dissolvenza banner (secondi)"
+L.UI_STEALTH_HOLD = "Durata banner (secondi)"
+L.UI_STEALTH_SOUND = "Riproduci suono furtività"
+L.UI_SYNC = "Sincronizza ora"
+L.UI_TAB_ATTACKERS = "Aggressori"
+L.UI_TAB_GUILDS = "Gilde"
+L.UI_TAB_PLAYERS = "Giocatori"
+L.UI_TAB_STATS = "Statistiche"
+L.UI_THROTTLE = "Limitazione (sec)"
+L.UI_TITLE = "Uccidi a Vista"
+L.UI_TYPE = "Tipo"
+L.UI_ZONE = "Zona"
+L.UI_REMOVE_KOS = "Rimuovi KoS"
+L.UI_CLEAR_NEARBY = "Svuota lista vicinanze"
+L.UI_NEARBY_COUNT = "Vicinanze: %d"
+L.UI_ADD_KOS_TARGET = "Aggiungi KoS (bersaglio)"
+L.ERR_NO_PLAYER_TARGET = "Nessun giocatore selezionato."
+L.UI_BANNER_TIMING = "Tempi banner"
+L.UI_BANNER_HOLD_HELP = "Quanto a lungo l'avviso resta completamente visibile prima di dissolversi."
+L.UI_BANNER_FADE_HELP = "Quanto a lungo l'avviso si dissolve gradualmente."
+L.UI_LIST_PLAYERS = "Giocatori: %s"
+L.UI_LIST_GUILDS = "Gilde: %s"
+L.MSG_LOADED = "Caricato. Digita /kos show"
+L.UI_NEARBY_HEADER = "Nome / Livello / Tempo"
+L.STEALTH_DETECTED_TITLE = "Giocatore in furtività rilevato!"
+L.UI_STATS_TITLE = "Statistiche nemici"
+L.UI_STATS_KOS_TAG = "KoS"
+L.UI_TAG_KOS = "KoS"
+L.UI_TAG_GUILD = "Gilda"
+L.UI_STATS_KOS_ONLY = "Solo KoS"
+L.UI_STATS_PVP_ONLY = "Solo PvP"
+L.UI_STATS_RESET = "Reimposta"
+L.UI_STATS_RESET_CONFIRM = "Reimpostare le statistiche dei nemici? Non può essere annullato."
+L.UI_STATS_FIRSTSEEN = "Prima volta visto"
+L.UI_STATS_SORT_LASTSEEN = "Ultima vista"
+L.UI_STATS_SORT_NAME = "Nome"
+L.UI_STATS_SORT_SEEN = "Visto"
+L.UI_STATS_SORT_WINS = "Vittorie"
+L.UI_STATS_SORT_LOSES = "Sconfitte"
+L.UI_STATS_SEEN = "Visto"
+L.UI_STATS_WINS = "Vittoria"
+L.UI_STATS_LOSES = "Sconfitta"
+L.TT_MINIMAP_TITLE = "Uccidi a Vista"
+L.TT_MINIMAP_LEFTCLICK = "Clic sx: Apri/Chiudi"
+L.TT_MINIMAP_RIGHTCLICK = "Clic dx: Menu"
+L.TT_ON_KOS = "Nella lista KoS"
+L.TT_GUILD_KOS = "Gilda-KoS"
+L.TT_LEVEL_FMT = "Livello %s"
+L.UI_NEARBY_SOUND = "Suono lista vicinanze"
+L.UI_ATTACKERS_TITLE = "Aggressori"
