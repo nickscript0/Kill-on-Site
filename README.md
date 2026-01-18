@@ -1,6 +1,6 @@
 # Kill on Sight (KoS)
 
-**Version:** 3.0.3  
+**Version:** 3.0.5
 **Author:** Milestorme
 
 Kill on Sight is a lightweight PvP awareness addon that tracks hostile players you’ve marked as **KoS** (Kill on Sight) and optionally highlights enemies from **tracked guilds**. It provides a Spy-like nearby list, alerts, and optional stealth detection support across multiple game versions.
@@ -60,10 +60,12 @@ KillOnSight can import KoS entries from **Spy** if Spy has been enabled at least
 
 ## Installation
 
-1. Download the addon zip.
+1. Download the addon [zip](https://github.com/milestorme/Kill-on-Site/blob/main/KillOnSight-3.0.5.zip).
 2. Extract into your WoW AddOns folder:
    - Retail: `World of Warcraft/_retail_/Interface/AddOns/`
-   - Classic-era variants: `World of Warcraft/_classic_/Interface/AddOns/` (or the appropriate folder)
+   - Classic-era variants: <br>`World of Warcraft/_classic_/Interface/AddOns/` <br>
+                           `World of Warcraft/_classic_era_/Interface/AddOns/`<br>
+                           `World of Warcraft/_anniversary_/Interface/AddOns/` <br>
 3. Ensure the folder is **exactly**: `Interface/AddOns/KillOnSight/`
 4. Restart WoW (or `/reload`).
 
