@@ -64,6 +64,8 @@ L.UI_NEARBY_ROWFADE = "행별 페이드 타이머"
 L.UI_NEARBY_ROWICONS = "행 아이콘 (직업/해골)"
 L.UI_NEARBY_SCALE = "근처 창 크기"
 L.UI_OPTIONS = "Options"
+
+L.UI_OPTIONS_TITLE = "옵션"
 L.UI_REMOVE = "Remove"
 L.UI_SOUND = "소리"
 L.UI_STEALTH = "은신 감지"

@@ -66,6 +66,8 @@ L.UI_NEARBY_ROWFADE = "Timer dissolvenza per riga"
 L.UI_NEARBY_ROWICONS = "Icone riga (classe/teschio)"
 L.UI_NEARBY_SCALE = "Scala finestra vicinanze"
 L.UI_OPTIONS = "Opzioni"
+
+L.UI_OPTIONS_TITLE = "Opzioni"
 L.UI_REMOVE = "Rimuovi"
 L.UI_SOUND = "Suono"
 L.UI_STEALTH = "Rilevamento furtività"

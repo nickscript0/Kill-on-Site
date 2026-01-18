@@ -58,6 +58,21 @@ local function TouchEncounter(guid, name, classFile, guild)
     e.nameLower = e.nameLower or key
     e.name = e.name or cn
   end
+
+-- Debounced GUI refresh (safe to call from anywhere)
+local _guiRefreshQueued = false
+local function _ScheduleGUIRefresh()
+  if _guiRefreshQueued then return end
+  _guiRefreshQueued = true
+  C_Timer.After(0, function()
+    _guiRefreshQueued = false
+    if KillOnSight and KillOnSight.GUI and KillOnSight.GUI.RefreshAll then
+      pcall(KillOnSight.GUI.RefreshAll)
+    elseif KillOnSight and KillOnSight.RefreshGUI then
+      pcall(KillOnSight.RefreshGUI)
+    end
+  end)
+end
 end
 
 local function ResolveEncounter(guid)
@@ -94,6 +109,11 @@ end
 -- Expose a safe method for other modules (Detector) to touch encounters.
 function Core:TouchEncounter(guid, name, classFile, guild)
   TouchEncounter(guid, name, classFile, guild)
+end
+
+-- Expose a safe, debounced GUI refresh hook for other modules (e.g., when guild info resolves later).
+function Core:_ScheduleGUIRefresh()
+  _ScheduleGUIRefresh()
 end
 
 local function Print(msg)
@@ -362,6 +382,28 @@ local function SetCachedGuild(guid, guild, now)
   guildCache[guid] = { guild = guild, t = now }
 end
 
+-- Debounced GUI refresh (used by deferred guild resolution)
+local _pendingGUIRefresh = false
+local function _ScheduleGUIRefresh()
+  if _pendingGUIRefresh then return end
+  _pendingGUIRefresh = true
+  if C_Timer and C_Timer.After then
+    C_Timer.After(0.2, function()
+      _pendingGUIRefresh = false
+      local GUI = GetGUI()
+      if GUI and GUI.RefreshAll then
+        GUI:RefreshAll()
+      end
+    end)
+  else
+    _pendingGUIRefresh = false
+    local GUI = GetGUI()
+    if GUI and GUI.RefreshAll then
+      GUI:RefreshAll()
+    end
+  end
+end
+
 
 local function IsFlagPlayer(flags)
   if not band then return false end
@@ -424,6 +466,51 @@ local function ResolveGuildForGuid(name, guid)
     end
   end
   return nil
+end
+
+-- Deferred guild resolution (Spy-style): guild data is often unavailable from combat log alone.
+-- We retry periodically and enrich existing entries (Attackers/Stats) when guild becomes available.
+local guildResolveTicker
+local function ResolvePendingGuilds()
+  local DB = GetDB()
+  if not DB or not DB.GetLastAttackers then return end
+  local list = DB:GetLastAttackers()
+  if not list or #list == 0 then return end
+  local now = time()
+  local changed = false
+
+  -- Cap work per tick (prevents spikes in large BG fights)
+  local checked = 0
+  for i = 1, #list do
+    local e = list[i]
+    if e and (not e.guild or e.guild == "") and e.guid and e.guid ~= "" then
+      if CanTryResolveGuild(e.guid, now) then
+        NoteResolveTry(e.guid, now)
+        local resolved = ResolveGuildForGuid(e.name, e.guid)
+        if resolved and resolved ~= "" then
+          e.guild = resolved
+          SetCachedGuild(e.guid, resolved, now)
+          -- Keep stats metadata enriched too
+          if DB.NoteEnemySeen then
+            DB:NoteEnemySeen(e.name, e.class, resolved, e.guid)
+          end
+          changed = true
+        end
+      end
+      checked = checked + 1
+      if checked >= 20 then break end
+    end
+  end
+
+  if changed then
+    _ScheduleGUIRefresh()
+  end
+end
+
+local function StartDeferredGuildResolveTicker()
+  if guildResolveTicker then return end
+  if not C_Timer or not C_Timer.NewTicker then return end
+  guildResolveTicker = C_Timer.NewTicker(1.0, ResolvePendingGuilds)
 end
 
 local function IsFlagHostileOrNeutral(flags)
@@ -707,6 +794,7 @@ Core:SetScript("OnEvent", function(self, event, ...)
     if Nearby and Nearby.Init then Nearby:Init() end
     StartNearbyNameplateScan()
     StartEncounterTicker()
+    StartDeferredGuildResolveTicker()
     Print(L.MSG_LOADED)
     if C_Timer and C_Timer.After and KillOnSightDB and KillOnSightDB.localeSanity == true then
       C_Timer.After(10, LocaleSanityCheck)
@@ -783,3 +871,7 @@ LocaleSanityCheck = function()
     DEFAULT_CHAT_FRAME:AddMessage('|cff00d0ff'..prefix..':|r '..table.concat(unused, ', '))
   end
 end
+
+-- Expose for other modules
+_G.KillOnSight_Core = _G.KillOnSight_Core or Core
+_G.KillOnSight_Core._ScheduleGUIRefresh = _ScheduleGUIRefresh

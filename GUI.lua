@@ -825,8 +825,17 @@ end
   CreateBackdrop(frame)
 
   frame.title = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
+  frame.title:SetTextColor(1, 0.82, 0)
   frame.title:SetPoint("TOP", 0, -14)
   frame.title:SetText(L.UI_TITLE)
+
+  -- KoS logo (top-left)
+  frame.logo = frame:CreateTexture(nil, "ARTWORK")
+  frame.logo:SetSize(64, 64)
+  frame.logo:SetPoint("TOPLEFT", frame, "TOPLEFT", 12, -12)
+  frame.logo:SetTexture("Interface\\AddOns\\KillOnSight\\logo.tga")
+  frame.logo:SetAlpha(0.95)
+
 
   local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
   close:SetPoint("TOPRIGHT", -5, -5)
@@ -889,12 +898,21 @@ end
         self.title:SetText(L.UI_STATS_TITLE)
       elseif id == 3 and L and L.UI_ATTACKERS_TITLE then
         self.title:SetText(L.UI_ATTACKERS_TITLE)
+      elseif id == 5 and L and L.UI_OPTIONS_TITLE then
+        self.title:SetText(L.UI_OPTIONS_TITLE)
       elseif L and L.UI_TITLE then
         self.title:SetText(L.UI_TITLE)
       end
     end
 
-    if self.LayoutTabs then self:LayoutTabs() end
+    -- Hide logo on Options tab only
+    if self.logo and self.logo.SetShown then
+      self.logo:SetShown(id ~= 5)
+    elseif self.logo then
+      if id == 5 then self.logo:Hide() else self.logo:Show() end
+    end
+
+  if self.LayoutTabs then self:LayoutTabs() end
 
     for i=1,#self.tabPanels do
       local p = self.tabPanels[i]
@@ -932,12 +950,13 @@ local pPlayers = CreateFrame("Frame", nil, frame)
   addBtn:SetPoint("RIGHT", remBtn, "LEFT", -6, 0)
 
   local nameLabel = pPlayers:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  nameLabel:SetTextColor(1, 0.82, 0)
   nameLabel:SetText(L.UI_NAME)
-  nameLabel:SetPoint("TOPLEFT", pPlayers, "TOPLEFT", 10, -14)
+  nameLabel:SetPoint("TOPLEFT", pPlayers, "TOPLEFT", 90, -14)
 
-  nameBox = MakeEditBox(pPlayers, 160)
-  nameBox:SetPoint("TOPLEFT", pPlayers, "TOPLEFT", 55, -10)
-  nameBox:SetPoint("RIGHT", addBtn, "LEFT", -6, 0)
+  nameBox = MakeEditBox(pPlayers, 120)
+  nameBox:SetPoint("TOPLEFT", pPlayers, "TOPLEFT", 135, -10)
+  nameBox:SetWidth(120) -- fixed width so it does not overlap the logo
   nameBox:SetText("")
   -- no reason box in UI
 
@@ -1042,12 +1061,13 @@ local pPlayers = CreateFrame("Frame", nil, frame)
   gAddBtn:SetPoint("RIGHT", gRemBtn, "LEFT", -6, 0)
 
   local guildLabel = pGuilds:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  guildLabel:SetTextColor(1, 0.82, 0)
   guildLabel:SetText(L.UI_GUILD)
-  guildLabel:SetPoint("TOPLEFT", pGuilds, "TOPLEFT", 10, -14)
+  guildLabel:SetPoint("TOPLEFT", pGuilds, "TOPLEFT", 90, -14)
 
-  guildBox = MakeEditBox(pGuilds, 200)
-  guildBox:SetPoint("TOPLEFT", pGuilds, "TOPLEFT", 65, -10)
-  guildBox:SetPoint("RIGHT", gAddBtn, "LEFT", -6, 0)
+  guildBox = MakeEditBox(pGuilds, 150)
+  guildBox:SetPoint("TOPLEFT", pGuilds, "TOPLEFT", 145, -10)
+  guildBox:SetWidth(150) -- fixed width so it does not overlap the logo
   -- no reason box in UI
 
   local gList = CreateScrollList(pGuilds, {

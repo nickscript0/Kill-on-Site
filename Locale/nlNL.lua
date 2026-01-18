@@ -64,6 +64,8 @@ L.UI_NEARBY_ROWFADE = "Vervagtimers per rij"
 L.UI_NEARBY_ROWICONS = "Rijpictogrammen (klasse/schedel)"
 L.UI_NEARBY_SCALE = "Schaal van nabij-venster"
 L.UI_OPTIONS = "Options"
+
+L.UI_OPTIONS_TITLE = "Opties"
 L.UI_REMOVE = "Remove"
 L.UI_SOUND = "Geluid"
 L.UI_STEALTH = "Stealth-detectie"

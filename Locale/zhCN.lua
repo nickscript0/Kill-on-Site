@@ -64,6 +64,8 @@ L.UI_NEARBY_ROWFADE = "每行淡出计时"
 L.UI_NEARBY_ROWICONS = "行图标（职业/骷髅）"
 L.UI_NEARBY_SCALE = "附近窗口缩放"
 L.UI_OPTIONS = "Options"
+
+L.UI_OPTIONS_TITLE = "选项"
 L.UI_REMOVE = "Remove"
 L.UI_SOUND = "声音"
 L.UI_STEALTH = "潜行侦测"

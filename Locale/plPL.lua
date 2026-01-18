@@ -66,6 +66,8 @@ L.UI_NEARBY_ROWFADE = "Zanikanie wierszy"
 L.UI_NEARBY_ROWICONS = "Ikony wierszy (klasa/czaszka)"
 L.UI_NEARBY_SCALE = "Skala okna"
 L.UI_OPTIONS = "Opcje"
+
+L.UI_OPTIONS_TITLE = "Opcje"
 L.UI_REMOVE = "Usuń"
 L.UI_SOUND = "Dźwięk"
 L.UI_STEALTH = "Wykrywanie skradania"

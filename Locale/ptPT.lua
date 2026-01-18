@@ -66,6 +66,8 @@ L.UI_NEARBY_ROWFADE = "Temporizadores de esbatimento por linha"
 L.UI_NEARBY_ROWICONS = "Ícones por linha (classe/caveira)"
 L.UI_NEARBY_SCALE = "Escala da janela 'por perto'"
 L.UI_OPTIONS = "Opções"
+
+L.UI_OPTIONS_TITLE = "Opções"
 L.UI_REMOVE = "Remover"
 L.UI_SOUND = "Som"
 L.UI_STEALTH = "Deteção de furtividade"

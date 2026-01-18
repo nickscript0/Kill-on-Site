@@ -1,21 +1,22 @@
 # KillOnSight – Changelog
 
 ## 3.0.6
-### Added
-- **KoS Notes system**
-  - New Notes column on the KoS tab
-  - Clickable note icon per KoS entry
-  - Hover tooltip shows full note text (wrapped and scrollable)
-  - Click to add, edit, or clear notes
-  - Notes stored as metadata and do not affect KoS detection
-- **Spy import improvements**
-  - Imported Spy reasons populate KoS Notes automatically
-  - KoS list refreshes immediately after `/kos importspy`
-  - Clear chat message when no new KoS entries are imported
 
-### Fixed
-- UI layout refinements for KoS table (Notes column placement and width)
-- Localization coverage for Notes header across all supported languages
+### ✨ New Features
+- Added **KoS Notes system** (Spy-style reasons)
+- Added **deferred guild resolution** (retroactive guild filling)
+- Added guaranteed **NPC rare & elite dragon indicators**
+
+### 🎨 UI Improvements
+- Gold-colored headings across the GUI
+- KoS logo added to main window (hidden on Options tab)
+- Darkened GUI background for readability
+- Adjusted Name/Guild input fields to avoid logo overlap
+
+### 🛠 Fixes & Improvements
+- Fixed missing guilds in Attackers and Stats
+- Improved UI refresh behavior after imports
+- Locale sanity pass (all keys 1:1 with enUS)
 
 ## 3.0.5
 ### Added

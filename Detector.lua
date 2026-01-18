@@ -11,6 +11,14 @@ local function GetUnitGuild(unit)
   if g and g ~= "" then return g end
 end
 local Detector = {}
+
+-- Debounced GUI refresh (provided by Core)
+local function _ScheduleGUIRefresh()
+  local core = _G.KillOnSight_Core
+  if core and core._ScheduleGUIRefresh then
+    core._ScheduleGUIRefresh()
+  end
+end
 local lastNotifyAt = {} -- [key] = time()
 local lastCleanupAt = 0
 local CLEANUP_INTERVAL = 600      -- seconds
@@ -86,6 +94,10 @@ if UnitIsPlayer(unit) and UnitCanAttack("player", unit) then
 	  end
   if guild and guild ~= "" and DB.UpdateLastAttackerGuild then
     DB:UpdateLastAttackerGuild(name, guild)
+    local Core = GetCore()
+    if Core and Core.ScheduleGUIRefresh then
+      Core:_ScheduleGUIRefresh()
+    end
   end
   local kosType = nil
   local pe = DB.LookupPlayer and DB:LookupPlayer(name)
@@ -113,7 +125,13 @@ end
   local guild = GetUnitGuild(unit)
   if guid and guild and DB.UpdateLastAttackerGuildByGUID then
     -- If this player is in the Attackers list, enrich it with guild
-    DB:UpdateLastAttackerGuildByGUID(guid, guild)
+    local updated = DB:UpdateLastAttackerGuildByGUID(guid, guild)
+    if updated then
+      local Core = GetCore()
+      if Core and Core.ScheduleGUIRefresh then
+        Core:_ScheduleGUIRefresh()
+      end
+    end
   end
   if guild then
     local guildEntry = DB:LookupGuild(guild)

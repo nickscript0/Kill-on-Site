@@ -64,6 +64,8 @@ L.UI_NEARBY_ROWFADE = "Minuteries de fondu par ligne"
 L.UI_NEARBY_ROWICONS = "Icônes de ligne (classe/crâne)"
 L.UI_NEARBY_SCALE = "Échelle de la fenêtre"
 L.UI_OPTIONS = "Options"
+
+L.UI_OPTIONS_TITLE = "Options"
 L.UI_REMOVE = "Remove"
 L.UI_SOUND = "Son"
 L.UI_STEALTH = "Détection furtive"

@@ -66,6 +66,8 @@ L.UI_NEARBY_ROWFADE = "Per-row fade timers"
 L.UI_NEARBY_ROWICONS = "Row icons (class/skull)"
 L.UI_NEARBY_SCALE = "Nearby window scale"
 L.UI_OPTIONS = "Options"
+
+L.UI_OPTIONS_TITLE = "Options"
 L.UI_REMOVE = "Remove"
 L.UI_SOUND = "Sound"
 L.UI_STEALTH = "Stealth Detection"

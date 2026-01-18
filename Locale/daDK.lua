@@ -64,6 +64,8 @@ L.UI_NEARBY_ROWFADE = "Fade-timere pr. række"
 L.UI_NEARBY_ROWICONS = "Rækkeikoner (klasse/kranie)"
 L.UI_NEARBY_SCALE = "Skala for nær-vindue"
 L.UI_OPTIONS = "Options"
+
+L.UI_OPTIONS_TITLE = "Indstillinger"
 L.UI_REMOVE = "Remove"
 L.UI_SOUND = "Lyd"
 L.UI_STEALTH = "Stealth-detektion"

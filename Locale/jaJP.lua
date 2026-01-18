@@ -66,6 +66,8 @@ L.UI_NEARBY_ROWFADE = "行ごとのフェードタイマー"
 L.UI_NEARBY_ROWICONS = "行アイコン (クラス/髑髏)"
 L.UI_NEARBY_SCALE = "付近ウィンドウの倍率"
 L.UI_OPTIONS = "オプション"
+
+L.UI_OPTIONS_TITLE = "オプション"
 L.UI_REMOVE = "削除"
 L.UI_SOUND = "サウンド"
 L.UI_STEALTH = "ステルス検知"

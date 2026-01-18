@@ -64,6 +64,8 @@ L.UI_NEARBY_ROWFADE = "Temporizadores de desvanecer por fila"
 L.UI_NEARBY_ROWICONS = "Iconos por fila (clase/calavera)"
 L.UI_NEARBY_SCALE = "Escala de la ventana de cercanos"
 L.UI_OPTIONS = "Options"
+
+L.UI_OPTIONS_TITLE = "Opciones"
 L.UI_REMOVE = "Remove"
 L.UI_SOUND = "Sonido"
 L.UI_STEALTH = "Detección de sigilo"

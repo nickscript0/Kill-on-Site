@@ -64,6 +64,8 @@ L.UI_NEARBY_ROWFADE = "Таймеры затухания по строкам"
 L.UI_NEARBY_ROWICONS = "Иконки строки (класс/череп)"
 L.UI_NEARBY_SCALE = "Масштаб окна рядом"
 L.UI_OPTIONS = "Options"
+
+L.UI_OPTIONS_TITLE = "Настройки"
 L.UI_REMOVE = "Remove"
 L.UI_SOUND = "Звук"
 L.UI_STEALTH = "Обнаружение скрытности"
