@@ -49,7 +49,7 @@ KillOnSight can import KoS entries from **Spy** if Spy has been enabled at least
 - Only **KoS entries** are imported
 - Existing KillOnSight entries are **not duplicated**
 - If Spy has no KoS entries, nothing is imported and no chat message is shown
-- Imported notes/reasons from Spy are stored safely and ignored by core KoS logic
+- Imported notes/reasons from Spy
 - KillOnSight behavior and detection logic are unchanged
 
 ## Commands
