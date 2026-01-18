@@ -332,28 +332,54 @@ function Notifier:Flash()
 end
 
 function Notifier:NotifyPlayer(listType, name, reason)
-  local suffix = reason and (" - "..reason) or ""
-  self:Chat(string.format(L.SEEN, listType, name, suffix))
-  self:Sound()
-  self:Flash()
+  -- Always update the Nearby list first.
+  local nearby = _G.KillOnSight_Nearby
+  if nearby and nearby.Seen then
+    nearby:Seen(name, nil, nil, listType, nil)
+  end
 
-  -- Ensure alerts also show in the Nearby list.
-  -- Some detection paths can notify without the spy-like hostile scan having
-  -- populated the Nearby window yet.
-  if _G.KillOnSight_Nearby and _G.KillOnSight_Nearby.Seen then
-    _G.KillOnSight_Nearby:Seen(name, nil, nil, listType, nil)
+  -- Rollback-style behavior requested: KoS/Guild alerts fire ONLY once while the
+  -- player remains in the Nearby list (no time-based throttling).
+  local doChat, doStrong = true, true
+  if nearby and nearby.ConsumeKoSGuildAnnouncement then
+    doChat, doStrong = nearby:ConsumeKoSGuildAnnouncement(name, listType)
+  end
+
+  if not doChat and not doStrong then return end
+
+  local suffix = reason and (" - "..reason) or ""
+  if doChat then
+    self:Chat(string.format(L.SEEN, listType, name, suffix))
+  end
+  if doStrong then
+    self:Sound()
+    self:Flash()
   end
 end
 
 function Notifier:NotifyGuild(listType, name, guild, reason)
-  local suffix = reason and (" - "..reason) or ""
-  self:Chat(string.format(L.SEEN_GUILD, listType, name, guild, suffix))
-  self:Sound()
-  self:Flash()
+  -- Always update the Nearby list first.
+  local nearby = _G.KillOnSight_Nearby
+  if nearby and nearby.Seen then
+    nearby:Seen(name, nil, guild, listType, nil)
+  end
 
-  -- Ensure alerts also show in the Nearby list.
-  if _G.KillOnSight_Nearby and _G.KillOnSight_Nearby.Seen then
-    _G.KillOnSight_Nearby:Seen(name, nil, guild, listType, nil)
+  -- Rollback-style behavior requested: KoS/Guild alerts fire ONLY once while the
+  -- player remains in the Nearby list (no time-based throttling).
+  local doChat, doStrong = true, true
+  if nearby and nearby.ConsumeKoSGuildAnnouncement then
+    doChat, doStrong = nearby:ConsumeKoSGuildAnnouncement(name, listType)
+  end
+
+  if not doChat and not doStrong then return end
+
+  local suffix = reason and (" - "..reason) or ""
+  if doChat then
+    self:Chat(string.format(L.SEEN_GUILD, listType, name, guild, suffix))
+  end
+  if doStrong then
+    self:Sound()
+    self:Flash()
   end
 end
 

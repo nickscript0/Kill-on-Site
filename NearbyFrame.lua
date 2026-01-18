@@ -22,6 +22,9 @@ local Nearby = {
   rows = {},
   entries = {},   -- [lowerName] = {name,class,guild,level,zone,lastSeen,kosType}
   alerted = {},   -- [lowerName] = true if alerted this presence
+  -- KoS/Guild announcement gates: only once per presence while the player remains in Nearby.
+  strongAlerted = {},  -- [lowerName] = true if sound/flash already played this presence
+  announceAlerted = {},-- [lowerName] = true if chat announce already sent this presence
   refreshScheduled = false,
   minimized = false,
   menu = nil,
@@ -36,7 +39,7 @@ local Nearby = {
 
 -- Spy-like retention: keep players ACTIVE for this long, then INACTIVE (dimmed) before removal.
 local ACTIVE_TTL = 30   -- seconds: considered 'nearby'
-local INACTIVE_TTL = 60 -- seconds: keep dimmed before removing
+local INACTIVE_TTL = 30 -- seconds: keep dimmed before removing
 
 
 local SafeSetShown
@@ -410,6 +413,10 @@ function Nearby:AlertNewEnemy(e)
   end
 
   if isKoS then
+    -- Mark strong alert as consumed for this presence so Notifier does not
+    -- re-fire sound/flash while the player remains in the Nearby list.
+    local key = (e.name and e.name:lower()) or nil
+    if key then self.strongAlerted[key] = true end
     if prof.enableSound ~= false then N:Sound() end
     if prof.enableScreenFlash ~= false then N:Flash() end
   else
@@ -420,6 +427,37 @@ function Nearby:AlertNewEnemy(e)
       PlaySoundFile("Interface/AddOns/KillOnSight/Sounds/detected-nearby.mp3", "Master")
     end
   end
+end
+
+-- KoS/Guild alerts should only fire once while the player remains in the Nearby list.
+-- Returns two booleans: doChat, doStrong (sound/flash).
+function Nearby:ConsumeKoSGuildAnnouncement(name, listType)
+  if not name or name == "" then return false, false end
+  local Lc = GetLocale()
+  local isKoS = false
+  if listType then
+    if (Lc and Lc.KOS and listType == Lc.KOS) or (Lc and Lc.GUILD_KOS and listType == Lc.GUILD_KOS) or listType == "KoS" or listType == "Guild-KoS" then
+      isKoS = true
+    end
+  end
+  if not isKoS then return false, false end
+
+  local norm = NormalizeName(name) or name
+  local key = tostring(norm):lower()
+
+  local doChat = false
+  local doStrong = false
+
+  if not self.announceAlerted[key] then
+    self.announceAlerted[key] = true
+    doChat = true
+  end
+  if not self.strongAlerted[key] then
+    self.strongAlerted[key] = true
+    doStrong = true
+  end
+
+  return doChat, doStrong
 end
 
 
@@ -551,6 +589,20 @@ local function UpdateScroll(self)
     self.countFS:SetText(string.format(L.UI_NEARBY_COUNT, total))
   end
 
+  -- IMPORTANT (combat / battleground reliability):
+  -- SecureActionButtonTemplate attributes (type/macrotext) are protected during combat.
+  -- If we continue to reassign row.entry + labels in combat (common in battlegrounds),
+  -- the displayed name can diverge from the secure macro target, causing "sometimes" targeting.
+  --
+  -- Strategy: while in combat, keep the row display stable and defer the full refresh
+  -- until PLAYER_REGEN_ENABLED (handled by QueueLayout's regen hook).
+  if InCombatLockdown and InCombatLockdown() then
+    self._pendingRefresh = true
+    self:QueueLayout()
+    FauxScrollFrame_Update(self.scroll, total, visible, 22)
+    return
+  end
+
   for i = 1, visible do
     local idx = offset + i
     local row = self.rows[i]
@@ -559,9 +611,13 @@ local function UpdateScroll(self)
 
     if e then
       -- Secure targeting: only set while out of combat (protected in combat).
-      if row.SetAttribute and (not (InCombatLockdown and InCombatLockdown())) then
+      if row.SetAttribute then
         row:SetAttribute("type1", "macro")
-        row:SetAttribute("macrotext1", "/targetexact " .. (e.name or ""))
+        -- Use macrotext1 (paired with type1). Also set macrotext for maximum compatibility
+        -- across client variants that may read the un-suffixed attribute.
+        local tname = e.fullName or e.name or ""
+        row:SetAttribute("macrotext1", "/targetexact " .. tname)
+        row:SetAttribute("macrotext",  "/targetexact " .. tname)
       end
 
       row.text:SetText(RowLabel(e, tNow))
@@ -605,8 +661,9 @@ local function UpdateScroll(self)
       SafeEnableMouse(row, false)
       if row.icon then row.icon:Hide() end
       if row.skull then row.skull:Hide() end
-      if row.SetAttribute and (not (InCombatLockdown and InCombatLockdown())) then
+      if row.SetAttribute then
         row:SetAttribute("macrotext1", nil)
+        row:SetAttribute("macrotext", nil)
         row:SetAttribute("type1", nil)
       end
       -- do not call :Hide() (protected)
@@ -623,9 +680,10 @@ local function UpdateScroll(self)
       SafeEnableMouse(row, false)
       if row.icon then row.icon:Hide() end
       if row.skull then row.skull:Hide() end
-      if row.SetAttribute and (not (InCombatLockdown and InCombatLockdown())) then
+      if row.SetAttribute then
         row:SetAttribute("type1", nil)
         row:SetAttribute("macrotext1", nil)
+        row:SetAttribute("macrotext", nil)
       end
     end
   end
@@ -695,21 +753,26 @@ function Nearby:Create()
     local b = CreateFrame("Button", nil, f, "SecureActionButtonTemplate")
     b:RegisterForClicks("AnyDown", "AnyUp")
 
-    -- Spy-style secure targeting setup (Classic)
+    -- Secure targeting setup.
+    -- Use macrotext1 (paired with type1). Also set macrotext for compatibility.
     b:SetAttribute("type1", "macro")
-    b:SetAttribute("macrotext", "/targetexact nil")
+    b:SetAttribute("macrotext1", "/targetexact nil")
+    b:SetAttribute("macrotext",  "/targetexact nil")
 
     b:SetScript("PreClick", function(selfBtn, button)
       if button ~= "LeftButton" then return end
       local e = selfBtn.entry
       if not e then return end
+      -- Cannot change secure attributes during combat.
+      if InCombatLockdown and InCombatLockdown() then return end
       -- Use full cross-realm name when available; fall back to short name.
       local tname = e.fullName or e.name or ""
       if tname == "" then return end
       -- Strip any accidental color codes.
       tname = tname:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
-      -- Set macrotext just-in-time like Spy does.
-      selfBtn:SetAttribute("macrotext", "/targetexact " .. tname)
+      -- Set macrotext just-in-time (out of combat only).
+      selfBtn:SetAttribute("macrotext1", "/targetexact " .. tname)
+      selfBtn:SetAttribute("macrotext",  "/targetexact " .. tname)
     end)
     b:SetPoint("TOPLEFT", 12, -56 - (i-1)*22)
     b:SetSize(180, 22)
@@ -842,6 +905,8 @@ function Nearby:ClearAll(opts)
   opts = opts or {}
   self.entries = {}
   self.alerted = {}
+  self.strongAlerted = {}
+  self.announceAlerted = {}
   self.orderCounter = 0
   -- Hide immediately in sanctuary mode unless caller requests otherwise.
   if self.frame and not opts.keepShown then
@@ -974,6 +1039,8 @@ for k, e in pairs(self.entries) do
   if now > inactiveExp then
     self.entries[k] = nil
     self.alerted[k] = nil
+    self.strongAlerted[k] = nil
+    self.announceAlerted[k] = nil
   elseif now > activeExp then
     e.state = "inactive"
     count = count + 1

@@ -1,22 +1,31 @@
 # KillOnSight – Changelog
 
 ## 3.0.6
+### Fixed
+- Deferred guild resolution (Spy-style): guild names now populate reliably for Nearby, Attackers, and Stats once the data becomes available (target/mouseover/nameplates)
+- Attackers UI now refreshes automatically when guild info is enriched
+- Fixed Nearby list click-to-target reliability, especially in battlegrounds (e.g. Alterac Valley).
+  - Secure targeting attributes are now consistent and no longer desync during combat.
+  - Clicking a player name now targets the correct unit reliably. Unless combat blocked
 
-### ✨ New Features
-- Added **KoS Notes system** (Spy-style reasons)
-- Added **deferred guild resolution** (retroactive guild filling)
-- Added guaranteed **NPC rare & elite dragon indicators**
+- Fixed KoS / Guild alert spam caused by repeated aura, combat log, and visibility updates.
+  - KoS and Guild alerts (sound, screen flash, chat announce) now trigger **only once per player while they remain in the Nearby list**.
+  - Alerts reset only after the player fully leaves the Nearby list and is seen again.
+### Added
+- **Notes** column on the KoS tab
+  - Clickable note icon per entry (dimmed when empty)
+  - Mouseover shows full note text in a wrapped, scrollable tooltip
+  - Click opens a small editor to create/edit/clear notes
+  - Notes are stored as `reason` in SavedVariables (Spy imports show here automatically)
 
-### 🎨 UI Improvements
-- Gold-colored headings across the GUI
-- KoS logo added to main window (hidden on Options tab)
-- Darkened GUI background for readability
-- Adjusted Name/Guild input fields to avoid logo overlap
+### Changed
+- `/kos importspy` now refreshes the KoS list immediately
+- `/kos importspy` prints a message even when no new entries are found
 
-### 🛠 Fixes & Improvements
-- Fixed missing guilds in Attackers and Stats
-- Improved UI refresh behavior after imports
-- Locale sanity pass (all keys 1:1 with enUS)
+### Notes
+- Notes are metadata only and do not change KoS/Guild detection
+
+---
 
 ## 3.0.5
 ### Added

@@ -1,6 +1,6 @@
 # Kill on Sight (KoS)
 
-**Version:** 3.0.6
+**Version:** 3.0.6  
 **Author:** Milestorme
 
 Kill on Sight is a lightweight PvP awareness addon that tracks hostile players you’ve marked as **KoS** (Kill on Sight) and optionally highlights enemies from **tracked guilds**. It provides a Spy-like nearby list, alerts, and optional stealth detection support across multiple game versions.
@@ -25,12 +25,10 @@ Kill on Sight is a lightweight PvP awareness addon that tracks hostile players y
 - **Sync**
   - Sync KoS/Guild entries with party/raid/guild (when available)
   - Changelog pruning to reduce SavedVariables bloat
-- **KoS Notes (New)**
-  - Dedicated Notes column on the KoS tab
-  - Clickable note icon per entry
-  - Hover to view full note (wrapped, scrollable)
-  - Click to add/edit/clear notes
-  - Notes are stored safely as metadata and do not affect detection
+
+- **Notes (KoS)**
+  - Optional per-player note icon on the KoS tab
+  - Mouseover shows the full note text; click to create/edit/clear
 
 ## Spy KoS Import
 
@@ -48,8 +46,8 @@ KillOnSight can import KoS entries from **Spy** if Spy has been enabled at least
 ### Notes
 - Only **KoS entries** are imported
 - Existing KillOnSight entries are **not duplicated**
-- If Spy has no KoS entries, nothing is imported and no chat message is shown
-- Imported notes/reasons from Spy
+- If Spy has no KoS entries, nothing is imported and a chat message is shown
+- Imported notes/reasons from Spy are stored safely and ignored by core KoS logic
 - KillOnSight behavior and detection logic are unchanged
 
 ## Commands
@@ -66,7 +64,7 @@ KillOnSight can import KoS entries from **Spy** if Spy has been enabled at least
 
 ## Installation
 
-1. Download the addon [zip](https://github.com/milestorme/Kill-on-Site/blob/main/KillOnSight.zip).
+1. Download the addon [zip](https://github.com/milestorme/Kill-on-Site/blob/main/KillOnSight-3.0.6.zip).
 2. Extract into your WoW AddOns folder:
    - Retail: `World of Warcraft/_retail_/Interface/AddOns/`
    - Classic-era variants: <br>`World of Warcraft/_classic_/Interface/AddOns/` <br>
