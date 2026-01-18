@@ -8,8 +8,13 @@ local function IsRetailMainline()
   if type(WOW_PROJECT_ID) == "number" and type(WOW_PROJECT_MAINLINE) == "number" then
     return WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
   end
-  -- Conservative fallback: modern UI container exists only on Retail.
-  return (_G.TargetFrame and _G.TargetFrame.TargetFrameContainer) ~= nil
+  -- Fallback for clients that don't expose WOW_PROJECT_* globals:
+  -- Use TOC version from GetBuildInfo(). Retail (Mainline) uses 1xx,xxx+.
+  local _, _, _, toc = GetBuildInfo()
+  if type(toc) == "number" then
+    return toc >= 100000
+  end
+  return false
 end
 
 local function RunRetail()
@@ -244,27 +249,80 @@ local function RunRetail()
   end
 
   -- ------------------------------------------------------------
+  -- Optional: also drive the TargetFrame border texture when available.
+  -- Some clients/styles do not render the portrait ring clearly for NPCs,
+  -- but the classic TargetFrame textures are still present and can be used.
+  -- This does NOT affect KoS logic; it only provides a visual for NPC rare/elite.
+  -- ------------------------------------------------------------
+
+  local function GetTargetFrameBorderTexture()
+    -- Legacy global (exists on many clients)
+    local tex = _G.TargetFrameTextureFrameTexture
+          or (_G.TargetFrameTextureFrame and _G.TargetFrameTextureFrame.Texture)
+    if tex and tex.SetTexture then return tex end
+
+    -- Retail container variants (best-effort)
+    if _G.TargetFrame and _G.TargetFrame.TargetFrameContainer then
+      local c = _G.TargetFrame.TargetFrameContainer
+      if c.FrameTexture and c.FrameTexture.SetTexture then return c.FrameTexture end
+      if c.TextureFrame and c.TextureFrame.Texture and c.TextureFrame.Texture.SetTexture then return c.TextureFrame.Texture end
+    end
+
+    return nil
+  end
+
+  local function ApplyFrameBorder(mode)
+    local tex = GetTargetFrameBorderTexture()
+    if not tex then return end
+    if mode == "none" then
+      tex:SetTexture("Interface\\TargetingFrame\\UI-TargetingFrame")
+      if tex.SetVertexColor then tex:SetVertexColor(1,1,1,1) end
+    elseif mode == "rare" then
+      tex:SetTexture("Interface\\TargetingFrame\\UI-TargetingFrame-Rare")
+      if tex.SetVertexColor then tex:SetVertexColor(1,1,1,1) end
+    elseif mode == "elite" then
+      tex:SetTexture("Interface\\TargetingFrame\\UI-TargetingFrame-Elite")
+      if tex.SetVertexColor then tex:SetVertexColor(1,1,1,1) end
+    end
+  end
+
+  -- ------------------------------------------------------------
   -- Update loop
   -- ------------------------------------------------------------
 
   local function Update()
     if not UnitExists("target") then
       ApplyOverlay("none")
+      ApplyFrameBorder("none")
       return
     end
 
-    -- Only apply to PLAYER targets. NPCs keep Blizzard visuals.
-    if not UnitIsPlayer("target") then
-      ApplyOverlay("none")
+    -- Players: keep existing KoS/Guild behavior (do not change).
+    if UnitIsPlayer("target") then
+      if IsKoSTarget() then
+        ApplyOverlay("rare")
+        ApplyFrameBorder("rare")
+      elseif IsGuildKoSTarget() then
+        ApplyOverlay("elite")
+        ApplyFrameBorder("elite")
+      else
+        ApplyOverlay("none")
+        ApplyFrameBorder("none")
+      end
       return
     end
 
-    if IsKoSTarget() then
+    -- NPCs: show rare/elite dragons based on Blizzard classification.
+    local class = UnitClassification and UnitClassification("target")
+    if class == "rare" or class == "rareelite" then
       ApplyOverlay("rare")
-    elseif IsGuildKoSTarget() then
+      ApplyFrameBorder("rare")
+    elseif class == "elite" or class == "worldboss" then
       ApplyOverlay("elite")
+      ApplyFrameBorder("elite")
     else
       ApplyOverlay("none")
+      ApplyFrameBorder("none")
     end
   end
 
@@ -273,12 +331,14 @@ local function RunRetail()
   f:RegisterEvent("PLAYER_TARGET_CHANGED")
   f:RegisterEvent("GROUP_ROSTER_UPDATE")
   f:RegisterEvent("GUILD_ROSTER_UPDATE")
+  f:RegisterEvent("UNIT_CLASSIFICATION_CHANGED")
+  f:RegisterEvent("UNIT_NAME_UPDATE")
   f:RegisterEvent("ADDON_LOADED")
 
-  f:SetScript("OnEvent", function(_, event, addon)
+  f:SetScript("OnEvent", function(_, event, arg1)
     -- Ensure we only kick on after our addon & the target UI are ready.
     if event == "ADDON_LOADED" then
-      if addon == "Blizzard_TargetingUI" or addon == "KillOnSight" then
+      if arg1 == "Blizzard_TargetingUI" or arg1 == "KillOnSight" then
         if C_Timer and C_Timer.After then
           C_Timer.After(0.1, Update)
         else
@@ -288,7 +348,18 @@ local function RunRetail()
       return
     end
 
+    -- Unit events: only refresh when the affected unit is the current target.
+    if event == "UNIT_CLASSIFICATION_CHANGED" or event == "UNIT_NAME_UPDATE" then
+      if arg1 ~= "target" then return end
+    end
+
+    -- Classification data can arrive a split-second after PLAYER_TARGET_CHANGED for some NPCs.
+    -- Do an immediate update and a short delayed update to catch late classification.
     Update()
+    if event == "PLAYER_TARGET_CHANGED" and C_Timer and C_Timer.After and UnitExists("target") and (not UnitIsPlayer("target")) then
+      C_Timer.After(0.15, Update)
+      C_Timer.After(0.45, Update)
+    end
   end)
 end
 
@@ -424,10 +495,15 @@ local function RunClassic()
     end
 
     -- IMPORTANT:
-    -- Do not override Blizzard's own elite/rare/boss classification visuals for NPCs.
-    -- We only apply custom borders for PLAYER targets that are KoS or Guild KoS.
+    -- Keep ALL KoS/Guild behavior for PLAYER targets exactly as-is.
+    -- Additionally, show Blizzard-style rare/elite dragons for NPC targets.
     if not UnitExists("target") then
-      if TargetFrame_CheckClassification then TargetFrame_CheckClassification(TargetFrame) end
+      -- Restore whatever Blizzard wants when there's no target.
+      if TargetFrame_CheckClassification then
+        TargetFrame_CheckClassification(TargetFrame)
+      else
+        ApplyBorder("none")
+      end
       return
     end
 
@@ -448,7 +524,17 @@ local function RunClassic()
       return
     end
 
-    -- NPC target: always restore Blizzard default classification (elite/rare/boss dragon etc.)
+    -- NPC target: ALWAYS show rare/elite dragons based on classification.
+    local class = UnitClassification and UnitClassification("target")
+    if class == "rare" or class == "rareelite" then
+      ApplyBorder("rare")
+      return
+    elseif class == "elite" or class == "worldboss" then
+      ApplyBorder("elite")
+      return
+    end
+
+    -- Normal NPC: restore Blizzard's normal texture.
     if TargetFrame_CheckClassification then
       TargetFrame_CheckClassification(TargetFrame)
     else

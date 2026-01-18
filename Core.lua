@@ -138,6 +138,7 @@ local function Help()
   Print(L.CMD_HELP)
   Print("Pruning policy (Stats): /kos statsprune on|off|maxdays N|maxentries N|now")
   Print("Tip: /kos statsprune   (with no args) prints current status")
+  Print("Import from Spy: /kos importspy")
 end
 
 local function EnsureName(rest)
@@ -243,6 +244,15 @@ SlashCmdList["KILLONSIGHT"] = function(msg)
   if cmd == "removeguild" then return RemoveGuild(rest) end
   if cmd == "list" then return List() end
 	if cmd == "stats" then return List() end
+	if cmd == "importspy" then
+	  local imp = _G.KillOnSight_SpyImport
+	  if imp and imp.Run then
+	    imp:Run()
+	  else
+	    Print("Spy import is unavailable (module not loaded).")
+	  end
+	  return
+	end
   if cmd == 'localesanity' then
     LocaleSanityCheck()
     return

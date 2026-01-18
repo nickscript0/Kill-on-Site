@@ -26,6 +26,26 @@ Kill on Sight is a lightweight PvP awareness addon that tracks hostile players y
   - Sync KoS/Guild entries with party/raid/guild (when available)
   - Changelog pruning to reduce SavedVariables bloat
 
+## Spy KoS Import
+
+KillOnSight can import KoS entries from **Spy** if Spy has been enabled at least once.
+
+### How to Import
+1. Enable **Spy**
+2. Log in once (or `/reload`) so Spy’s SavedVariables load
+3. Run:
+   ```
+   /kos importspy
+   ```
+4. (Optional) Disable Spy afterwards
+
+### Notes
+- Only **KoS entries** are imported
+- Existing KillOnSight entries are **not duplicated**
+- If Spy has no KoS entries, nothing is imported and no chat message is shown
+- Imported notes/reasons from Spy are stored safely and ignored by core KoS logic
+- KillOnSight behavior and detection logic are unchanged
+
 ## Commands
 
 - `/kos show` — Toggle the main window
@@ -36,6 +56,7 @@ Kill on Sight is a lightweight PvP awareness addon that tracks hostile players y
 - `/kos removeguild <guild>` — Remove a guild from Guild-KoS
 - `/kos list` — List current entries
 - `/kos sync` — Trigger a sync
+- `/kos importspy` — Import KoS entries from Spy
 
 ## Installation
 
