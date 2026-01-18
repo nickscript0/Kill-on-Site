@@ -141,3 +141,14 @@ L.UI_NEARBY_SOUND = "Nearby list sound"
 
 -- Added in 3.0.x
 L.UI_ATTACKERS_TITLE = "Attackers"
+
+-- Notes / Spy import
+L.UI_NOTE = L.UI_NOTE or "Note"
+L.UI_NOTE_EDIT = L.UI_NOTE_EDIT or "Edit Note"
+L.UI_NOTE_SAVE = L.UI_NOTE_SAVE or "Save"
+L.UI_NOTE_CLEAR = L.UI_NOTE_CLEAR or "Clear"
+L.UI_NOTE_CANCEL = L.UI_NOTE_CANCEL or "Cancel"
+L.UI_NOTE_EMPTY = L.UI_NOTE_EMPTY or "(No note)"
+L.UI_IMPORTSPY_NONE = L.UI_IMPORTSPY_NONE or "Spy import complete - no new KoS entries found."
+L.UI_IMPORTSPY_RESULT = L.UI_IMPORTSPY_RESULT or "Spy import complete: %d added, %d already existed."
+L.UI_NOTES = "Notes"

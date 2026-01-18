@@ -321,6 +321,8 @@ end
 
 function DB:LookupGuild(guild)
   if not guild or guild == "" then return nil end
+  return self:GetData().guilds[guild:lower()]
+end
 
 function DB:SetPlayerClass(name, class)
   if not name or not class then return false end
@@ -336,10 +338,25 @@ function DB:SetPlayerClass(name, class)
   return true
 end
 
+-- Update the optional note/reason attached to a KoS player.
+-- This is metadata only and does not affect detection.
+function DB:SetPlayerReason(name, reason)
+  name = norm(name); if not name then return false end
+  local key = name:lower()
+  local d = self:GetData()
+  local e = d.players[key]
+  if not e then return false end
 
-  return self:GetData().guilds[guild:lower()]
+  local r = norm(reason)
+  if r == "" then r = nil end
+  if e.reason == r then return false end
+
+  e.reason = r
+  e.modifiedAt = Now()
+  self:_IncRevision()
+  self:_PushChange("upsert","P",key,e)
+  return true
 end
-
 function DB:HasPlayer(name)
   return self:LookupPlayer(name) ~= nil
 end

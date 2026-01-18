@@ -70,9 +70,17 @@ end
 -- Public helper called by /kos importspy
 function Import:Run()
   local imported, skipped = self:ImportPerCharacter()
-  if imported > 0 or skipped > 0 then
-    Print(string.format("Spy import complete: %d added, %d already existed.", imported, skipped))
+  if imported == 0 and skipped == 0 then
+    Print(L.UI_IMPORTSPY_NONE or "Spy import complete - no new KoS entries found.")
+  else
+    Print(string.format((L.UI_IMPORTSPY_RESULT or "Spy import complete: %d added, %d already existed."), imported, skipped))
     Print("Tip: You can disable Spy after importing if you only need KillOnSight.")
+  end
+
+  -- Refresh the KoS list UI instantly, if it's loaded.
+  local gui = _G.KillOnSight_GUI
+  if gui and gui.RefreshAll then
+    gui:RefreshAll()
   end
 end
 

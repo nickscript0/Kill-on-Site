@@ -1,5 +1,22 @@
 # KillOnSight – Changelog
 
+## 3.0.6
+### Added
+- **KoS Notes system**
+  - New Notes column on the KoS tab
+  - Clickable note icon per KoS entry
+  - Hover tooltip shows full note text (wrapped and scrollable)
+  - Click to add, edit, or clear notes
+  - Notes stored as metadata and do not affect KoS detection
+- **Spy import improvements**
+  - Imported Spy reasons populate KoS Notes automatically
+  - KoS list refreshes immediately after `/kos importspy`
+  - Clear chat message when no new KoS entries are imported
+
+### Fixed
+- UI layout refinements for KoS table (Notes column placement and width)
+- Localization coverage for Notes header across all supported languages
+
 ## 3.0.5
 ### Added
 - Added **Spy KoS import support**

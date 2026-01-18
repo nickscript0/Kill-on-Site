@@ -65,6 +65,172 @@ local function MakeEditBox(parent, w)
   return e
 end
 
+-------------------------------------------------
+-- KoS Notes (reason) column + editor
+-------------------------------------------------
+
+local NOTE_ICON_TEX = "Interface\\Buttons\\UI-GuildButton-PublicNote-Up"
+
+local NoteTooltip
+local function EnsureNoteTooltip()
+  if NoteTooltip then return NoteTooltip end
+
+  local f = CreateFrame("Frame", "KillOnSight_NoteTooltip", UIParent, "BackdropTemplate")
+  CreateBackdrop(f)
+  f:SetFrameStrata("TOOLTIP")
+  f:SetClampedToScreen(true)
+  f:SetSize(280, 140)
+  f:Hide()
+
+  local sf = CreateFrame("ScrollFrame", nil, f, "UIPanelScrollFrameTemplate")
+  sf:SetPoint("TOPLEFT", 10, -10)
+  sf:SetPoint("BOTTOMRIGHT", -30, 10)
+
+  local child = CreateFrame("Frame", nil, sf)
+  child:SetSize(1, 1)
+  sf:SetScrollChild(child)
+
+  local text = child:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  text:SetPoint("TOPLEFT", 0, 0)
+  text:SetJustifyH("LEFT")
+  text:SetJustifyV("TOP")
+  text:SetWidth(240)
+  text:SetText("")
+
+  f._sf = sf
+  f._text = text
+
+  f:SetScript("OnMouseWheel", function(self, delta)
+    local cur = self._sf:GetVerticalScroll() or 0
+    local max = self._sf:GetVerticalScrollRange() or 0
+    local next = cur - (delta * 20)
+    if next < 0 then next = 0 end
+    if next > max then next = max end
+    self._sf:SetVerticalScroll(next)
+  end)
+  f:EnableMouse(true)
+  f:EnableMouseWheel(true)
+
+  NoteTooltip = f
+  return f
+end
+
+local function ShowNoteTooltip(anchor, noteText)
+  local f = EnsureNoteTooltip()
+  local txt = (noteText and tostring(noteText) ~= "" and tostring(noteText)) or (L.UI_NOTE_EMPTY or "(No note)")
+
+  f._text:SetText(txt)
+  f._text:SetWidth(240)
+  local h = f._text:GetStringHeight() or 0
+  local maxH = 120
+  local height = math.min(maxH, math.max(32, h + 6))
+  f:SetSize(280, height + 20)
+
+  f._sf:SetVerticalScroll(0)
+  f:ClearAllPoints()
+  f:SetPoint("TOPLEFT", anchor, "BOTTOMRIGHT", 8, 0)
+  f:Show()
+end
+
+local function HideNoteTooltip()
+  if NoteTooltip then NoteTooltip:Hide() end
+end
+
+local NoteEditor
+local function EnsureNoteEditor()
+  if NoteEditor then return NoteEditor end
+
+  local f = CreateFrame("Frame", "KillOnSight_NoteEditor", UIParent, "BackdropTemplate")
+  CreateBackdrop(f)
+  f:SetFrameStrata("DIALOG")
+  f:SetSize(360, 220)
+  f:SetPoint("CENTER")
+  f:SetClampedToScreen(true)
+  f:Hide()
+
+  local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  title:SetPoint("TOPLEFT", 14, -12)
+  title:SetText(L.UI_NOTE_EDIT or "Edit Note")
+  f._title = title
+
+  local nameFS = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  nameFS:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
+  nameFS:SetText("-")
+  f._nameFS = nameFS
+
+  local sf = CreateFrame("ScrollFrame", nil, f, "UIPanelScrollFrameTemplate")
+  sf:SetPoint("TOPLEFT", 14, -58)
+  sf:SetPoint("BOTTOMRIGHT", -32, 44)
+
+  local eb = CreateFrame("EditBox", nil, sf)
+  eb:SetMultiLine(true)
+  eb:SetAutoFocus(true)
+  eb:SetFontObject("ChatFontNormal")
+  eb:SetWidth(280)
+  eb:SetText("")
+  eb:SetScript("OnEscapePressed", function(self) self:ClearFocus() f:Hide() end)
+
+  sf:SetScrollChild(eb)
+  f._sf = sf
+  f._eb = eb
+
+  local btnSave = MakeButton(f, L.UI_NOTE_SAVE or "Save", 80, 22)
+  btnSave:SetPoint("BOTTOMRIGHT", -14, 14)
+
+  local btnClear = MakeButton(f, L.UI_NOTE_CLEAR or "Clear", 80, 22)
+  btnClear:SetPoint("RIGHT", btnSave, "LEFT", -8, 0)
+
+  local btnCancel = MakeButton(f, L.UI_NOTE_CANCEL or "Cancel", 80, 22)
+  btnCancel:SetPoint("RIGHT", btnClear, "LEFT", -8, 0)
+
+  btnCancel:SetScript("OnClick", function() f:Hide() end)
+
+  f._btnSave = btnSave
+  f._btnClear = btnClear
+  f._btnCancel = btnCancel
+
+  NoteEditor = f
+  return f
+end
+
+local function OpenNoteEditor(playerName)
+  local f = EnsureNoteEditor()
+  local e = (playerName and DB and DB.LookupPlayer and DB:LookupPlayer(playerName)) or nil
+  local cur = (e and e.reason) or ""
+
+  f._playerName = playerName
+  f._nameFS:SetText(playerName or "-")
+  f._eb:SetText(cur or "")
+  f._eb:HighlightText(0)
+  f._sf:SetVerticalScroll(0)
+
+  f._btnSave:SetScript("OnClick", function()
+    local name = f._playerName
+    if not name or name == "" then f:Hide() return end
+    local text = f._eb:GetText() or ""
+    if DB and DB.SetPlayerReason then
+      DB:SetPlayerReason(name, text)
+    elseif DB and DB.LookupPlayer then
+      local ent = DB:LookupPlayer(name)
+      if ent then ent.reason = text end
+    end
+    if KillOnSight_GUI and KillOnSight_GUI.RefreshAll then KillOnSight_GUI:RefreshAll() end
+    f:Hide()
+  end)
+
+  f._btnClear:SetScript("OnClick", function()
+    local name = f._playerName
+    if name and name ~= "" and DB and DB.SetPlayerReason then
+      DB:SetPlayerReason(name, nil)
+    end
+    if KillOnSight_GUI and KillOnSight_GUI.RefreshAll then KillOnSight_GUI:RefreshAll() end
+    f:Hide()
+  end)
+
+  f:Show()
+  f._eb:SetFocus()
+end
+
 local function MakeCheck(parent, label)
   local c = CreateFrame("CheckButton", nil, parent, "ChatConfigCheckButtonTemplate")
   c.Text:SetText(label)
@@ -142,10 +308,38 @@ local function CreateScrollList(parent, columns)
       r.cols = {}
       local xx = 0
       for _,col in ipairs(columns) do
-        local fs = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        fs:SetPoint("LEFT", xx, 0)
-        fs:SetWidth(col.width)
-        if col.key == "name" then
+        if col.key == "note" then
+          -- Notes column is an icon-only clickable button.
+          local b = CreateFrame("Button", nil, r)
+          b:SetSize(16, 16)
+          b:SetPoint("LEFT", xx + 4, 0)
+          b:RegisterForClicks("LeftButtonUp")
+          b:EnableMouse(true)
+
+          local tex = b:CreateTexture(nil, "ARTWORK")
+          tex:SetAllPoints()
+          tex:SetTexture(NOTE_ICON_TEX)
+          b._tex = tex
+
+          b:SetScript("OnEnter", function(self)
+            ShowNoteTooltip(self, self._noteText)
+          end)
+          b:SetScript("OnLeave", function()
+            HideNoteTooltip()
+          end)
+          b:SetScript("OnClick", function(self)
+            if self._playerName and self._playerName ~= "" then
+              OpenNoteEditor(self._playerName)
+            end
+          end)
+
+          r.noteBtn = b
+          -- no fontstring for this column
+        else
+          local fs = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+          fs:SetPoint("LEFT", xx, 0)
+          fs:SetWidth(col.width)
+          if col.key == "name" then
           r.classIcon = r:CreateTexture(nil, "ARTWORK")
           r.classIcon:SetSize(14, 14)
           r.classIcon:SetPoint("LEFT", xx + 2, 0)
@@ -153,10 +347,11 @@ local function CreateScrollList(parent, columns)
           fs:ClearAllPoints()
           fs:SetPoint("LEFT", xx + 18, 0)
           fs:SetWidth(col.width - 18)
+          end
+          fs:SetJustifyH("LEFT")
+          fs:SetText("")
+          r.cols[col.key] = fs
         end
-        fs:SetJustifyH("LEFT")
-        fs:SetText("")
-        r.cols[col.key] = fs
         xx = xx + col.width
       end
 
@@ -194,10 +389,21 @@ local function CreateScrollList(parent, columns)
         row:SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, -((idx-1) * rowH))
 
         for _,col in ipairs(columns) do
-          local v = item[col.key]
-          row.cols[col.key]:SetText(v or "")
-          if col.key == "name" and row.classIcon then
-            _ApplyClassIcon(row.classIcon, item._class)
+          if col.key == "note" then
+            if row.noteBtn then
+              row.noteBtn._playerName = item._nameRaw
+              row.noteBtn._noteText = item._reason
+              local has = (item._reason and tostring(item._reason) ~= "")
+              row.noteBtn._tex:SetAlpha(has and 1.0 or 0.3)
+            end
+          else
+            local v = item[col.key]
+            if row.cols[col.key] then
+              row.cols[col.key]:SetText(v or "")
+            end
+            if col.key == "name" and row.classIcon then
+              _ApplyClassIcon(row.classIcon, item._class)
+            end
           end
         end
 
@@ -314,10 +520,12 @@ local function BuildPlayers()
     local e = it.v
     out[#out+1] = {
       _key = it.k,
+      _nameRaw = e.name,
       _class = (e and e.class) or _GuessClassFor(e.name, nil),
+      _reason = e.reason,
       name = _ColorizeName(e.name, (e and e.class) or _GuessClassFor(e.name, nil)),
       type = e.type,
-      -- reason hidden in UI
+      note = "", -- icon-only column
 
       lastSeen = FormatTime(e.lastSeenAt),
       zone = e.lastSeenZone or "",
@@ -736,8 +944,10 @@ local pPlayers = CreateFrame("Frame", nil, frame)
   local list = CreateScrollList(pPlayers, {
     {key="name", title=L.UI_NAME, width=170},
     {key="type", title=L.UI_TYPE, width=70},
-        {key="lastSeen", title=L.UI_LAST_SEEN, width=130},
+    {key="lastSeen", title=L.UI_LAST_SEEN, width=130},
     {key="zone", title=L.UI_ZONE, width=150},
+    -- Notes column placed after Zone (far right)
+    {key="note", title=(L.UI_NOTES or "Notes"), width=60},
   })
   list:SetPoint("TOPLEFT", 0, -42)
   list:SetPoint("BOTTOMRIGHT", 0, 0)

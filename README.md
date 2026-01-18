@@ -25,6 +25,12 @@ Kill on Sight is a lightweight PvP awareness addon that tracks hostile players y
 - **Sync**
   - Sync KoS/Guild entries with party/raid/guild (when available)
   - Changelog pruning to reduce SavedVariables bloat
+- **KoS Notes (New)**
+  - Dedicated Notes column on the KoS tab
+  - Clickable note icon per entry
+  - Hover to view full note (wrapped, scrollable)
+  - Click to add/edit/clear notes
+  - Notes are stored safely as metadata and do not affect detection
 
 ## Spy KoS Import
 
@@ -60,7 +66,7 @@ KillOnSight can import KoS entries from **Spy** if Spy has been enabled at least
 
 ## Installation
 
-1. Download the addon [zip](https://github.com/milestorme/Kill-on-Site/blob/main/KillOnSight-3.0.5.zip).
+1. Download the addon [zip](https://github.com/milestorme/Kill-on-Site/blob/main/KillOnSight.zip).
 2. Extract into your WoW AddOns folder:
    - Retail: `World of Warcraft/_retail_/Interface/AddOns/`
    - Classic-era variants: <br>`World of Warcraft/_classic_/Interface/AddOns/` <br>
