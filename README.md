@@ -1,6 +1,6 @@
 # Kill on Sight (KoS)
 
-**Version:** 3.0.5
+**Version:** 3.0.6
 **Author:** Milestorme
 
 Kill on Sight is a lightweight PvP awareness addon that tracks hostile players you’ve marked as **KoS** (Kill on Sight) and optionally highlights enemies from **tracked guilds**. It provides a Spy-like nearby list, alerts, and optional stealth detection support across multiple game versions.
@@ -49,7 +49,7 @@ KillOnSight can import KoS entries from **Spy** if Spy has been enabled at least
 - Only **KoS entries** are imported
 - Existing KillOnSight entries are **not duplicated**
 - If Spy has no KoS entries, nothing is imported and no chat message is shown
-- Imported notes/reasons from Spy are stored safely and ignored by core KoS logic
+- Imported notes/reasons from Spy
 - KillOnSight behavior and detection logic are unchanged
 
 ## Commands
