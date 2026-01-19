@@ -3,6 +3,9 @@ local ADDON_NAME = ...
 local L = KillOnSight_L
 local DB = KillOnSight_DB
 
+-- Retail (Mainline) gating
+local IS_RETAIL = (WOW_PROJECT_ID == WOW_PROJECT_MAINLINE)
+
 local GUI = {}
 local frame
 
@@ -94,7 +97,7 @@ local function EnsureNoteTooltip()
   text:SetPoint("TOPLEFT", 0, 0)
   text:SetJustifyH("LEFT")
   text:SetJustifyV("TOP")
-  text:SetWidth(240)
+  text:SetWidth(276)
   text:SetText("")
 
   f._sf = sf
@@ -857,12 +860,16 @@ end
     local cur = nil
 
     for _,t in ipairs(self.tabs or {}) do
-      t:ClearAllPoints()
-	      if not cur then
-	        t:SetPoint("TOPLEFT", self, "BOTTOMLEFT", xPad, yRow1)
-        cur = t
+      -- Skip hidden tabs (e.g., Attackers on Retail)
+      if t and t.IsShown and (not t:IsShown()) then
+        -- no-op
       else
-	        t:SetPoint("LEFT", cur, "RIGHT", gap, 0)
+        t:ClearAllPoints()
+	        if not cur then
+	          t:SetPoint("TOPLEFT", self, "BOTTOMLEFT", xPad, yRow1)
+          cur = t
+        else
+	          t:SetPoint("LEFT", cur, "RIGHT", gap, 0)
 
         local right = (t:GetRight() or 0)
         local frameRight = (self:GetRight() or 0)
@@ -873,12 +880,17 @@ end
           row = 2
         end
 
-        cur = t
+          cur = t
+        end
       end
     end
   end
 
   frame.ShowTab = function(self, id)
+    -- Retail: Attackers tab is intentionally hidden/disabled.
+    if IS_RETAIL and id == 3 then
+      id = 4
+    end
     -- Resize for certain tabs so they have room to breathe.
     if id == 4 then
       if not self._wasSize then
@@ -935,6 +947,10 @@ end
   local t3 = MakeTab(frame, 3, L.UI_TAB_ATTACKERS)
   local t4 = MakeTab(frame, 4, (L.UI_TAB_STATS or "Stats"))
   local t5 = MakeTab(frame, 5, L.UI_OPTIONS)
+
+  if IS_RETAIL and t3 then
+    t3:Hide()
+  end
 
   -- Tab layout: place tabs BELOW the frame (so they don't overlap the window content)
   local tabs = {t1, t2, t3, t4, t5}
@@ -1610,20 +1626,26 @@ cAutoHide:SetScript("OnClick", function(self)
 end)
 
 -- Classic/TBC-friendly town suppression: Booty Bay / Gadgetzan.
-local cGoblinTowns = MakeCheck(opt, L.UI_DISABLE_GOBLIN_TOWNS)
-cGoblinTowns:SetPoint("TOPLEFT", cAutoHide, "BOTTOMLEFT", 0, -10)
-cGoblinTowns:SetChecked(prof.disableInGoblinTowns == true)
-cGoblinTowns:SetScript("OnClick", function(self)
-  prof.disableInGoblinTowns = self:GetChecked()
-  if KillOnSight_Nearby and KillOnSight_Nearby.ClearAll then
-    KillOnSight_Nearby:ClearAll({ keepShown = false })
-  end
-end)
+local anchorBelowAutoHide = cAutoHide
+local anchorOffset = -10
+if not IS_RETAIL then
+  local cGoblinTowns = MakeCheck(opt, L.UI_DISABLE_GOBLIN_TOWNS)
+  cGoblinTowns:SetPoint("TOPLEFT", cAutoHide, "BOTTOMLEFT", 0, -10)
+  cGoblinTowns:SetChecked(prof.disableInGoblinTowns == true)
+  cGoblinTowns:SetScript("OnClick", function(self)
+    prof.disableInGoblinTowns = self:GetChecked()
+    if KillOnSight_Nearby and KillOnSight_Nearby.ClearAll then
+      KillOnSight_Nearby:ClearAll({ keepShown = false })
+    end
+  end)
+  anchorBelowAutoHide = cGoblinTowns
+  anchorOffset = -18
+end
 
 
 -- Nearby window scale
 local sNearbyScale = CreateFrame("Slider", "KillOnSightNearbyScaleSlider", opt, "OptionsSliderTemplate")
-sNearbyScale:SetPoint("TOPLEFT", cGoblinTowns, "BOTTOMLEFT", 0, -18)
+sNearbyScale:SetPoint("TOPLEFT", anchorBelowAutoHide, "BOTTOMLEFT", 0, anchorOffset)
 sNearbyScale:SetMinMaxValues(0.60, 1.60)
 sNearbyScale:SetValueStep(0.05)
 sNearbyScale:SetObeyStepOnDrag(true)

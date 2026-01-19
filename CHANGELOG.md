@@ -1,28 +1,60 @@
 # KillOnSight – Changelog
 
-## 3.0.7
+## Version 3.0.7 (Retail Midnight Stability Update)
 
-### Added
-- New option: **Disable alerts in neutral goblin towns (Booty Bay / Gadgetzan)**.
-- Locale-aware detection for **Booty Bay** and **Gadgetzan** using subzone/minimap text.
-- Embedded latest **AceLocale-3.0** library.
-- New locale keys for goblin town detection across all supported languages.
+### 🚀 Retail (Patch 12.0 / Midnight)
+- **Removed COMBAT_LOG_EVENT_UNFILTERED usage on Retail**
+  - Prevents repeated forbidden-action errors and UI lockouts
+  - Retail now uses unit-scoped and nameplate-based detection only
+- **Nearby detection reworked for Retail**
+  - Uses `NAME_PLATE_UNIT_ADDED`, target, and mouseover
+  - Added **distance filtering** to prevent far-range nameplates from flooding Nearby
+- **Enemy Nameplates requirement handling**
+  - When enemy nameplates are disabled:
+    - Nearby switches to a limited mode (target/mouseover only)
+    - A **localized warning** is shown (includes “press V” shortcut)
+  - Warning is shown **after sync messages** for better UX
+- **Attackers list disabled on Retail**
+  - Removed from UI and options
+  - Prevents misleading or unverifiable attacker data without combat log access
+- **Target frame fixes on Retail**
+  - Restored correct Blizzard target frame appearance
+  - Dragon indicators now overlay cleanly without altering frame art
 
-### Changed
-- Alert suppression logic now respects the goblin-town toggle for:
-  - Nearby list population
-  - KoS / Guild alerts
-  - Stealth alerts
-  - Activity alerts
+### 🛡️ Notification & Zone Rules
+- **Sanctuary zones now fully respected**
+  - KoS and Guild notifications no longer fire in sanctuaries
+- **Booty Bay & Gadgetzan suppression enforced everywhere**
+  - Notification rules now apply consistently across all detection paths
+- **Booty Bay / Gadgetzan option hidden on Retail**
+  - Option remains available for Classic / TBC where applicable
 
-### Localization
-- Verified **all locale files** include required goblin-town keys.
-- No hard-coded English strings; fully client-localized behavior on Classic & TBC.
+### 🌍 Localization
+- Added new locale key:
+  - `RETAIL_NEARBY_LIMITED_NAMEPLATES_OFF`
+- Implemented across **all supported languages** with native translations
+- Removed hardcoded English warnings
 
-### Compatibility
-- Classic Era / Hardcore
-- TBC Anniversary
-- Retail (safe no-op fallback)
+### 🎨 UI & Layout Improvements
+- **Options UI width increased by 15%**
+  - Improves readability for verbose locales (notably German)
+- **Stealth Detection options spacing adjusted**
+  - Moved ~6% further from KoS/Guild & Nearby sections for clarity
+- Layout spacing preserved when Retail-only options are hidden
+
+### 🔧 Stability & Compatibility
+- Updated embedded libraries where required to avoid BugSack/BugGrabber dependency issues
+- Ensured Retail changes do **not** affect:
+  - Classic
+  - TBC
+  - Wrath
+- No functional regressions on non-Retail clients
+
+---
+
+### Notes
+Retail behavior intentionally differs from Classic-era clients due to Blizzard API changes in Patch 12.0. Nearby detection on Retail requires **enemy nameplates enabled** for full functionality.
+
 
 ## 3.0.6
 ### Fixed

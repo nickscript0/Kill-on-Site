@@ -168,3 +168,5 @@ L.UI_NOTE_EMPTY = L.UI_NOTE_EMPTY or "(No note)"
 L.UI_IMPORTSPY_NONE = L.UI_IMPORTSPY_NONE or "Spy import complete - no new KoS entries found."
 L.UI_IMPORTSPY_RESULT = L.UI_IMPORTSPY_RESULT or "Spy import complete: %d added, %d already existed."
 L.UI_NOTES = "메모"
+
+L.RETAIL_NEARBY_LIMITED_NAMEPLATES_OFF = "근처 감지는 적 이름표가 꺼져 있어 제한됩니다. 전체 감지를 위해 적 이름표(인터페이스 > 이름)를 켜세요. V 키로 토글할 수 있습니다."

@@ -63,6 +63,11 @@ local function GetUnitNameSafe(unit)
   return name
 end
 
+-- Retail/Midnight: nameplates can appear at very long distances.
+-- Distance-filter only the *Nearby list population* to keep it relevant.
+local IS_RETAIL = (WOW_PROJECT_ID == WOW_PROJECT_MAINLINE)
+local DEFAULT_RETAIL_NEARBY_MAX_YARDS = 60
+
 
 function Detector:CheckUnit(unit)
   local DB = GetDB()
@@ -71,6 +76,18 @@ function Detector:CheckUnit(unit)
   if not unit or not UnitExists(unit) then return end
   if not InAllowedContext() then return end
   if UnitIsUnit(unit, "player") then return end
+
+  -- Retail-only: gate Nearby list updates by distance (nameplates can be very long-range in 12.x).
+  local withinNearbyRange = true
+  if IS_RETAIL and UnitDistanceSquared then
+    local distSq = UnitDistanceSquared(unit)
+    if distSq then
+      local maxSq = DEFAULT_RETAIL_NEARBY_MAX_YARDS * DEFAULT_RETAIL_NEARBY_MAX_YARDS
+      if distSq > maxSq then
+        withinNearbyRange = false
+      end
+    end
+  end
 
 
 
@@ -82,6 +99,7 @@ if not name then return end
   local classFile = UnitIsPlayer(unit) and select(2, UnitClass(unit)) or nil
 -- Nearby list (hostile players)
 if UnitIsPlayer(unit) and UnitCanAttack("player", unit) then
+  if withinNearbyRange then
   -- classFile computed once above
   local guild = GetUnitGuild(unit)
 	  -- Track enemy encounters (Spy-style): touch an active encounter, don't increment count here.
@@ -108,6 +126,7 @@ if UnitIsPlayer(unit) and UnitCanAttack("player", unit) then
   end
   if KillOnSight_Nearby then
     KillOnSight_Nearby:Seen(name, classFile, guild, kosType, UnitLevel(unit))
+  end
   end
 end
 

@@ -4,6 +4,9 @@ local L = KillOnSight_L
 
 local Core = CreateFrame("Frame")
 
+-- Project detection (Retail vs Classic variants)
+local IS_RETAIL = (WOW_PROJECT_ID and WOW_PROJECT_MAINLINE and WOW_PROJECT_ID == WOW_PROJECT_MAINLINE) or false
+
 local band = (bit and bit.band) or (bit32 and bit32.band)
 
 local function GetDB() return _G.KillOnSight_DB end
@@ -122,9 +125,33 @@ end
 
 -- Nearby list population relies heavily on enemy nameplates (NAME_PLATE_* events / C_NamePlate).
 -- If enemy nameplates are disabled, we can only see players when you target/mouseover them.
-local function EnsureEnemyNameplatesEnabled()
-  -- Intentionally does NOT change the player's nameplate CVars.
-  -- Nameplate-based detection will work when enemy nameplates are enabled by the user.
+local function EnemyNameplatesEnabled()
+  if not IS_RETAIL then return true end
+  if not GetCVarBool then return true end
+
+  -- CVars vary slightly by client; check the common ones.
+  if GetCVarBool("nameplateShowEnemies") == false then return false end
+  if GetCVarBool("nameplateShowEnemyPlayers") == false then return false end
+
+  return true
+end
+
+local function WarnIfEnemyNameplatesDisabled()
+  if not IS_RETAIL then return end
+  local enabled = EnemyNameplatesEnabled()
+
+  -- Export a simple flag other modules can check.
+  _G.KillOnSight_RetailNearbyLimited = (not enabled) or nil
+
+  if enabled then return end
+
+  -- Warn once per session. (Deliberately not saved to DB; users may toggle nameplates mid-session.)
+  if _G.KillOnSight_NameplatesWarned then return end
+  _G.KillOnSight_NameplatesWarned = true
+
+  local prefix = (L and L.ADDON_PREFIX) or "KILLONSIGHT"
+  local msg = (L and L.RETAIL_NEARBY_LIMITED_NAMEPLATES_OFF) or "Retail: Nearby is limited because enemy nameplates are disabled. Enable Enemy Nameplates in Interface > Names (press V)."
+  DEFAULT_CHAT_FRAME:AddMessage("|cff00d0ff"..prefix..":|r "..msg)
 end
 
 local nearbyTicker
@@ -807,12 +834,14 @@ Core:SetScript("OnEvent", function(self, event, ...)
     return
   end
 
-  if event == "PLAYER_ENTERING_WORLD" then
-    if Detector then Detector:CheckUnit("target") end
-    if GUI then GUI:RefreshAll() end
-    if Sync then Sync:Hello() end
-    return
-  end
+	  if event == "PLAYER_ENTERING_WORLD" then
+	    if Detector then Detector:CheckUnit("target") end
+	    if GUI then GUI:RefreshAll() end
+	    -- Print sync warning first (if any), then the Retail nameplate limitation warning.
+	    if Sync then Sync:Hello() end
+	    WarnIfEnemyNameplatesDisabled()
+	    return
+	  end
 
   if event == "PLAYER_TARGET_CHANGED" then
     if Detector then Detector:CheckUnit("target") end
@@ -831,7 +860,21 @@ Core:SetScript("OnEvent", function(self, event, ...)
     return
   end
 
+  if event == "NAME_PLATE_UNIT_REMOVED" then
+    -- Nearby list is pruned by ticker; no hard remove needed here.
+    return
+  end
+
+  if event == "UNIT_AURA" or event == "UNIT_SPELLCAST_START" or event == "UNIT_SPELLCAST_STOP" or event == "UNIT_SPELLCAST_SUCCEEDED" or event == "UNIT_SPELLCAST_INTERRUPTED" or event == "UNIT_SPELLCAST_FAILED" then
+    local unit = ...
+    if unit and (unit == "target" or unit == "mouseover" or unit:match('^nameplate')) then
+      if Detector then Detector:CheckUnit(unit) end
+    end
+    return
+  end
+
   if event == "COMBAT_LOG_EVENT_UNFILTERED" then
+    if IS_RETAIL then return end
     HandleCombatLog()
     if Activity and Activity.OnCombatLog then Activity:OnCombatLog() end
     return
@@ -844,7 +887,22 @@ Core:RegisterEvent("PLAYER_ENTERING_WORLD")
 Core:RegisterEvent("PLAYER_TARGET_CHANGED")
 Core:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
 Core:RegisterEvent("NAME_PLATE_UNIT_ADDED")
-Core:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+
+Core:RegisterEvent("NAME_PLATE_UNIT_REMOVED")
+
+-- Retail 12.x: avoid CLEU (can cause repeated forbidden/blocked actions).
+-- Classic-era clients: keep CLEU for full attacker/combat attribution.
+if not IS_RETAIL then
+  Core:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+end
+
+-- Unit-scoped alternatives (Retail-friendly)
+Core:RegisterEvent("UNIT_AURA")
+Core:RegisterEvent("UNIT_SPELLCAST_START")
+Core:RegisterEvent("UNIT_SPELLCAST_STOP")
+Core:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
+Core:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED")
+Core:RegisterEvent("UNIT_SPELLCAST_FAILED")
 
 -- Export for other modules.
 _G.KillOnSight_Core = Core
