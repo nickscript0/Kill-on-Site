@@ -1,18 +1,42 @@
 # KillOnSight – Changelog
 
+## 3.0.7
+
+### Added
+- New option: **Disable alerts in neutral goblin towns (Booty Bay / Gadgetzan)**.
+- Locale-aware detection for **Booty Bay** and **Gadgetzan** using subzone/minimap text.
+- Embedded latest **AceLocale-3.0** library.
+- New locale keys for goblin town detection across all supported languages.
+
+### Changed
+- Alert suppression logic now respects the goblin-town toggle for:
+  - Nearby list population
+  - KoS / Guild alerts
+  - Stealth alerts
+  - Activity alerts
+
+### Localization
+- Verified **all locale files** include required goblin-town keys.
+- No hard-coded English strings; fully client-localized behavior on Classic & TBC.
+
+### Compatibility
+- Classic Era / Hardcore
+- TBC Anniversary
+- Retail (safe no-op fallback)
+
 ## 3.0.6
 ### Fixed
 - Deferred guild resolution (Spy-style): guild names now populate reliably for Nearby, Attackers, and Stats once the data becomes available (target/mouseover/nameplates)
 - Attackers UI now refreshes automatically when guild info is enriched
 - Fixed Nearby list click-to-target reliability, especially in battlegrounds (e.g. Alterac Valley).
   - Secure targeting attributes are now consistent and no longer desync during combat.
-  - Clicking a player name now targets the correct unit reliably. Unless combat blocked
+  - Clicking a player name now targets the correct unit reliably.
 
 - Fixed KoS / Guild alert spam caused by repeated aura, combat log, and visibility updates.
   - KoS and Guild alerts (sound, screen flash, chat announce) now trigger **only once per player while they remain in the Nearby list**.
   - Alerts reset only after the player fully leaves the Nearby list and is seen again.
 ### Added
-- **Notes** column on the KoS tab
+- Optional **Notes** column on the KoS tab
   - Clickable note icon per entry (dimmed when empty)
   - Mouseover shows full note text in a wrapped, scrollable tooltip
   - Click opens a small editor to create/edit/clear notes

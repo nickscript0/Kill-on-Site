@@ -576,6 +576,7 @@ local function BuildLastAttackers(limit)
 
     items[#items+1] = {
       _key = key,
+      _class = classFile,
       name = _ColorizeName(rawName, classFile) .. tag,
       guild = e.guild or "",
       zone = e.zone or "",
@@ -845,6 +846,7 @@ end
 
   local DEFAULT_W, DEFAULT_H = 640, 440
   local STATS_W, STATS_H = 980, 520
+  local OPTIONS_W, OPTIONS_H = math.floor((DEFAULT_W * 1.10) + 0.5), DEFAULT_H
 
   function frame:LayoutTabs()
     local xPad = 12
@@ -877,12 +879,17 @@ end
   end
 
   frame.ShowTab = function(self, id)
-    -- Resize only for the Stats tab so it has room to breathe (Spy-like list + detail pane).
+    -- Resize for certain tabs so they have room to breathe.
     if id == 4 then
       if not self._wasSize then
         self._wasSize = { self:GetWidth(), self:GetHeight() }
       end
       self:SetSize(STATS_W, STATS_H)
+    elseif id == 5 then
+      if not self._wasSize then
+        self._wasSize = { self:GetWidth(), self:GetHeight() }
+      end
+      self:SetSize(OPTIONS_W, OPTIONS_H)
     else
       -- restore to default (or previous saved size)
       if self._wasSize then
@@ -1471,8 +1478,72 @@ local pPlayers = CreateFrame("Frame", nil, frame)
   optScroll:SetPoint("BOTTOMRIGHT", pOpt, "BOTTOMRIGHT", -28, 0) -- leave room for the scrollbar
 
   local opt = CreateFrame("Frame", nil, optScroll)
-  opt:SetSize(700, 1600) -- big enough for all current + future options
+  -- Size dynamically based on the actual options content so the scrollbar never overshoots into blank space.
+  -- (We still set a sane initial size; it will be recalculated on show/resize.)
+  opt:SetSize(optScroll:GetWidth() or 700, optScroll:GetHeight() or 1)
   optScroll:SetScrollChild(opt)
+
+  local function _UpdateOptionsScrollSizing()
+    if not optScroll or not opt then return end
+    -- Ensure the scroll child is as wide as the visible viewport (minus a tiny gutter).
+    local vw = (optScroll:GetWidth() or 0)
+    if vw > 0 and opt.SetWidth then
+      opt:SetWidth(vw)
+    end
+
+    -- Measure the lowest bottom across children/regions and fit the scroll child to it.
+    local top = opt:GetTop() or optScroll:GetTop()
+    local minBottom = nil
+
+    for _,child in ipairs({ opt:GetChildren() }) do
+      local b = child and child.GetBottom and child:GetBottom() or nil
+      if b and (not minBottom or b < minBottom) then
+        minBottom = b
+      end
+    end
+
+    for _,region in ipairs({ opt:GetRegions() }) do
+      local b = region and region.GetBottom and region:GetBottom() or nil
+      if b and (not minBottom or b < minBottom) then
+        minBottom = b
+      end
+    end
+
+    if top and minBottom then
+      local pad = 40
+      local h = math.max(1, (top - minBottom) + pad)
+      local viewH = optScroll:GetHeight() or 0
+      if viewH > 0 and h < viewH then h = viewH end
+      opt:SetHeight(h)
+
+      -- Clamp scroll offset so you can never scroll past the last option into blank space.
+      local maxScroll = math.max(0, h - (viewH or 0))
+      local cur = optScroll:GetVerticalScroll() or 0
+      if cur > maxScroll then
+        optScroll:SetVerticalScroll(maxScroll)
+      end
+
+      local sb = optScroll.ScrollBar
+      if sb and sb.SetShown then
+        sb:SetShown(h > (viewH + 1))
+      end
+    end
+  end
+
+  optScroll:HookScript("OnShow", function()
+    if C_Timer and C_Timer.After then
+      C_Timer.After(0, _UpdateOptionsScrollSizing)
+    else
+      _UpdateOptionsScrollSizing()
+    end
+  end)
+  optScroll:HookScript("OnSizeChanged", function()
+    if C_Timer and C_Timer.After then
+      C_Timer.After(0, _UpdateOptionsScrollSizing)
+    else
+      _UpdateOptionsScrollSizing()
+    end
+  end)
 
   local prof = DB:GetProfile()
 
@@ -1538,10 +1609,21 @@ cAutoHide:SetScript("OnClick", function(self)
   end
 end)
 
+-- Classic/TBC-friendly town suppression: Booty Bay / Gadgetzan.
+local cGoblinTowns = MakeCheck(opt, L.UI_DISABLE_GOBLIN_TOWNS)
+cGoblinTowns:SetPoint("TOPLEFT", cAutoHide, "BOTTOMLEFT", 0, -10)
+cGoblinTowns:SetChecked(prof.disableInGoblinTowns == true)
+cGoblinTowns:SetScript("OnClick", function(self)
+  prof.disableInGoblinTowns = self:GetChecked()
+  if KillOnSight_Nearby and KillOnSight_Nearby.ClearAll then
+    KillOnSight_Nearby:ClearAll({ keepShown = false })
+  end
+end)
+
 
 -- Nearby window scale
 local sNearbyScale = CreateFrame("Slider", "KillOnSightNearbyScaleSlider", opt, "OptionsSliderTemplate")
-sNearbyScale:SetPoint("TOPLEFT", cAutoHide, "BOTTOMLEFT", 0, -18)
+sNearbyScale:SetPoint("TOPLEFT", cGoblinTowns, "BOTTOMLEFT", 0, -18)
 sNearbyScale:SetMinMaxValues(0.60, 1.60)
 sNearbyScale:SetValueStep(0.05)
 sNearbyScale:SetObeyStepOnDrag(true)

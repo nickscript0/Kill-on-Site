@@ -16,6 +16,20 @@ local function IsInSanctuary()
   return false
 end
 
+-- Optional town-level suppression (Classic/TBC-friendly): Booty Bay / Gadgetzan.
+-- These are *not* sanctuary zones, so we rely on subzone/minimap zone text.
+local function IsInGoblinTown()
+  local sub = (GetSubZoneText and GetSubZoneText()) or ""
+  local mini = (GetMinimapZoneText and GetMinimapZoneText()) or ""
+  if sub == "" then sub = mini end
+  if mini == "" then mini = sub end
+
+  local bb = (L.SUBZONE_BOOTY_BAY or "Booty Bay")
+  local gz = (L.SUBZONE_GADGETZAN or "Gadgetzan")
+
+  return sub == bb or mini == bb or sub == gz or mini == gz
+end
+
 local Nearby = {
   frame = nil,
   scroll = nil,
@@ -936,6 +950,16 @@ function Nearby:Seen(name, classFile, guild, kosType, level)
   if not DB then return end
   local prof = DB:GetProfile()
   if prof.showNearbyFrame == false then return end
+
+  -- Optional suppression for neutral goblin towns (Booty Bay / Gadgetzan).
+  if prof.disableInGoblinTowns and IsInGoblinTown() then
+    if next(self.entries) ~= nil then
+      self:ClearAll({ keepShown = false })
+    elseif self.frame and self.frame:IsShown() then
+      SafeSetShown(self.frame, false)
+    end
+    return
+  end
 
   -- Do not populate Nearby while in a sanctuary area; also clear/hide if needed.
   if IsInSanctuary() then

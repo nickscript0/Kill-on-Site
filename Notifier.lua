@@ -31,6 +31,25 @@ local function ShouldAlertOnce(key, cooldownSeconds)
   return true
 end
 
+-- Optional town-level suppression (Classic/TBC-friendly): Booty Bay / Gadgetzan.
+local function IsInGoblinTown()
+  local sub = (GetSubZoneText and GetSubZoneText()) or ""
+  local mini = (GetMinimapZoneText and GetMinimapZoneText()) or ""
+  if sub == "" then sub = mini end
+  if mini == "" then mini = sub end
+
+  local bb = (L.SUBZONE_BOOTY_BAY or "Booty Bay")
+  local gz = (L.SUBZONE_GADGETZAN or "Gadgetzan")
+
+  return sub == bb or mini == bb or sub == gz or mini == gz
+end
+
+local function SuppressInGoblinTown()
+  if not DB or not DB.GetProfile then return false end
+  local prof = DB:GetProfile()
+  return prof and prof.disableInGoblinTowns and IsInGoblinTown() or false
+end
+
 local function ClassHex(classFile)
   if not classFile or not RAID_CLASS_COLORS or not RAID_CLASS_COLORS[classFile] then
     return nil
@@ -332,6 +351,7 @@ function Notifier:Flash()
 end
 
 function Notifier:NotifyPlayer(listType, name, reason)
+  if SuppressInGoblinTown() then return end
   -- Always update the Nearby list first.
   local nearby = _G.KillOnSight_Nearby
   if nearby and nearby.Seen then
@@ -358,6 +378,7 @@ function Notifier:NotifyPlayer(listType, name, reason)
 end
 
 function Notifier:NotifyGuild(listType, name, guild, reason)
+  if SuppressInGoblinTown() then return end
   -- Always update the Nearby list first.
   local nearby = _G.KillOnSight_Nearby
   if nearby and nearby.Seen then
@@ -470,6 +491,7 @@ function Notifier:CenterWarning(msg)
   end
 end
 function Notifier:NotifyHidden(name, spellName, guid)
+  if SuppressInGoblinTown() then return end
   local prof = DB:GetProfile()
 
   -- Master stealth toggle (live)
@@ -513,6 +535,7 @@ function Notifier:NotifyHidden(name, spellName, guid)
 end
 
 function Notifier:NotifyActivity(listType, name, activity, reason)
+  if SuppressInGoblinTown() then return end
   local suffix = reason and (" - "..reason) or ""
   self:Chat(string.format(L.ACTIVITY, listType, name, activity, suffix))
   self:Sound()

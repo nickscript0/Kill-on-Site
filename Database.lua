@@ -160,6 +160,7 @@ function DB:Init()
 
   -- New option defaults (older SavedVariables won't have these)
   if realmDB.profile.nearbySound == nil then realmDB.profile.nearbySound = true end
+  if realmDB.profile.disableInGoblinTowns == nil then realmDB.profile.disableInGoblinTowns = false end
 
   -- prune very old change log if it grew huge
   local data = realmDB.data
