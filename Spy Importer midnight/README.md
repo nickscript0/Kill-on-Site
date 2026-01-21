@@ -45,11 +45,12 @@ World of Warcraft
        └─ Account
           └─ <YourAccountName>
              └─ SavedVariables
+
 ```
-## Download here - [KillOnSight-Spy-Importer.zip](https://github.com/milestorme/Kill-on-Site/releases/download/release/KillOnSight-Spy-Importer.zip)
+## ▶ Download here - [KillOnSight-Spy-Importer.zip](https://github.com/milestorme/Kill-on-Site/releases/download/release/KillOnSight-Spy-Importer.zip)
 ---
 
-## ▶ How to use the importer
+## How to use the importer
 
 ### 1️⃣ Run the importer
 Double-click:
@@ -67,9 +68,15 @@ Click **Browse…** and select:
 
 - `Spy.lua`
 - `KillOnSight.lua`
+```
+World of Warcraft
+ └─ _retail_
+    └─ WTF
+       └─ Account
+          └─ <YourAccountName>
+             └─ SavedVariables
 
-The file picker opens in your **World of Warcraft folder by default**.
-
+```
 ---
 
 ### 3️⃣ Choose the realm key
