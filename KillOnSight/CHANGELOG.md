@@ -1,25 +1,26 @@
 # KillOnSight – Changelog
 
-## Version 3.0.7 (Retail Midnight Stability Update)
+## 3.0.8 (Classic / TBC Anniversary)
 
-### 🚀 Retail (Patch 12.0 / Midnight)
-- **Removed COMBAT_LOG_EVENT_UNFILTERED usage on Retail**
-  - Prevents repeated forbidden-action errors and UI lockouts
-  - Retail now uses unit-scoped and nameplate-based detection only
-- **Nearby detection reworked for Retail**
-  - Uses `NAME_PLATE_UNIT_ADDED`, target, and mouseover
-  - Added **distance filtering** to prevent far-range nameplates from flooding Nearby
-- **Enemy Nameplates requirement handling**
-  - When enemy nameplates are disabled:
-    - Nearby switches to a limited mode (target/mouseover only)
-    - A **localized warning** is shown (includes “press V” shortcut)
-  - Warning is shown **after sync messages** for better UX
-- **Attackers list disabled on Retail**
-  - Removed from UI and options
-  - Prevents misleading or unverifiable attacker data without combat log access
-- **Target frame fixes on Retail**
-  - Restored correct Blizzard target frame appearance
-  - Dragon indicators now overlay cleanly without altering frame art
+### Sync
+- Reworked guild sync to be **safe and non-destructive**.
+- Removed all reset and delete behavior — sync now **only merges additions and updates**.
+- Restricted sync traffic to the **GUILD channel only**.
+- Added clear chat feedback when a sync completes, including how many entries were merged or ignored.
+
+### Data & Persistence
+- KoS entries now persist **realm suffix** and **guild** when available.
+- Existing entries are **automatically enriched** with realm/guild data when players are encountered again.
+- No breaking changes to existing SavedVariables.
+
+### Stability
+- Improved safety around cross-realm data handling.
+- Hardened sync logic against malformed or unexpected messages.
+
+---
+
+## Version 3.0.7 
+
 
 ### 🛡️ Notification & Zone Rules
 - **Sanctuary zones now fully respected**
@@ -29,11 +30,6 @@
 - **Booty Bay / Gadgetzan option hidden on Retail**
   - Option remains available for Classic / TBC where applicable
 
-### 🌍 Localization
-- Added new locale key:
-  - `RETAIL_NEARBY_LIMITED_NAMEPLATES_OFF`
-- Implemented across **all supported languages** with native translations
-- Removed hardcoded English warnings
 
 ### 🎨 UI & Layout Improvements
 - **Options UI width increased by 15%**

@@ -1243,7 +1243,7 @@ local pPlayers = CreateFrame("Frame", nil, frame)
       UpdateAtkButtons()
       return
     end
-    DB:AddPlayer(e.name, L.KOS, nil, UnitName("player"), _NormalizeClass(e.class) or _GuessClassFor(e.name, e.guid))
+    DB:AddPlayer(e.name, L.KOS, nil, UnitName("player"), _NormalizeClass(e.class, e.realm, e.fullName, e.guild) or _GuessClassFor(e.name, e.guid))
     GUI:RefreshAll()
     UpdateAtkButtons()
   end)

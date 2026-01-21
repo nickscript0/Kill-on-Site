@@ -238,9 +238,17 @@ function DB:_PushChange(op, kind, key, entry)
   end
 end
 
-local function MakePlayerEntry(name, listType, reason, addedBy, existing, class)
+local function MakePlayerEntry(name, listType, reason, addedBy, existing, class, realm, fullName, guild)
+  -- NOTE (Classic/TBC Anniversary cross-realm):
+  -- Retail/Classic can sometimes produce cross-realm player names (Name-Realm).
+  -- We keep the historical keying scheme (base name lowercase) for backwards compatibility,
+  -- but also persist realm/fullName/guild when available.
   return {
     name = name,
+    fullName = fullName or (existing and existing.fullName) or nil,
+    realm = realm or (existing and existing.realm) or nil,
+    guild = guild or (existing and existing.guild) or nil,
+
     class = class or (existing and existing.class) or nil,
     type = listType or L.KOS,
     reason = norm(reason),
@@ -265,12 +273,24 @@ local function MakeGuildEntry(guild, listType, reason, addedBy, existing)
   }
 end
 
-function DB:AddPlayer(name, listType, reason, addedBy, class)
+function DB:AddPlayer(name, listType, reason, addedBy, class, realm, fullName, guild)
   name = norm(name); if not name then return false end
   local key = name:lower()
+
+  -- If caller didn't provide realm/fullName, try to derive from a Name-Realm string.
+  if (not fullName or fullName == "") and type(name) == "string" and name:find("-", 1, true) then
+    fullName = name
+    local base, r = name:match("^([^%-]+)%-(.+)$")
+    if base and r and base ~= "" then
+      name = base
+      key = name:lower()
+      realm = realm or r
+    end
+  end
+
   local d = self:GetData()
   local existing = d.players[key]
-  local entry = MakePlayerEntry(name, listType, reason, addedBy, existing, class)
+  local entry = MakePlayerEntry(name, listType, reason, addedBy, existing, class, realm, fullName, guild)
   d.players[key] = entry
   self:_IncRevision()
   self:_PushChange("upsert","P",key,entry)

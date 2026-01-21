@@ -568,7 +568,7 @@ local function ShowMenuFor(self, e)
   local menu = {
     { text = e.name, isTitle = true, notCheckable = true },
     { text = L.UI_ADD_KOS, notCheckable = true, disabled = has, func = function()
-        DB:AddPlayer(e.name)
+        DB:AddPlayer(e.name, L.KOS, nil, UnitName("player"), nil, e.realm, e.fullName, e.guild)
         e.kosType = L.KOS
         self:ScheduleRefresh()
       end

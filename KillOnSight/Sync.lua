@@ -19,11 +19,8 @@ local MAX_DIFF_BYTES = 28000 -- approx, across serialized lines before chunking
 
 local peers = {} -- [sender] = { theirRev=0, theirSeq=0, lastHelloAt=0 }
 
-local function CanSync() return IsInGuild() or IsInGroup() end
+local function CanSync() return IsInGuild() end
 local function BestChannel()
-  if IsInGroup(LE_PARTY_CATEGORY_INSTANCE) then return "INSTANCE_CHAT" end
-  if IsInRaid() then return "RAID" end
-  if IsInGroup() then return "PARTY" end
   if IsInGuild() then return "GUILD" end
   return nil
 end
@@ -51,6 +48,10 @@ local function SerializeChange(ch)
     if ch.kind == "P" then
       payload = table.concat({
         "name="..Escape(ch.entry.name or ""),
+        "fullName="..Escape(ch.entry.fullName or ""),
+        "realm="..Escape(ch.entry.realm or ""),
+        "guild="..Escape(ch.entry.guild or ""),
+        "class="..Escape(ch.entry.class or ""),
         "type="..Escape(ch.entry.type or ""),
         "reason="..Escape(ch.entry.reason or ""),
         "addedBy="..Escape(ch.entry.addedBy or ""),
@@ -109,6 +110,11 @@ local function DeserializeChange(msg)
     if ch.kind == "P" then
       ch.entry = {
         name = kv.name,
+        fullName = (kv.fullName ~= "" and kv.fullName or nil),
+        realm = (kv.realm ~= "" and kv.realm or nil),
+        guild = (kv.guild ~= "" and kv.guild or nil),
+        class = (kv.class ~= "" and kv.class or nil),
+
         type = kv.type,
         reason = kv.reason ~= "" and kv.reason or nil,
         addedBy = kv.addedBy,
@@ -186,19 +192,49 @@ end
 local rx = {} -- [sender] = { lines={} }
 
 local function ApplyLines(sender, lines)
-  local applied = 0
+  local d = DB:GetData()
+  local stats = {
+    p_added = 0, p_updated = 0,
+    g_added = 0, g_updated = 0,
+    deletes_ignored = 0,
+    ignored = 0,
+    applied = 0,
+  }
+
   for _,line in ipairs(lines) do
     if line:match("^CH|") then
       local ch = DeserializeChange(line)
       if ch then
-        DB:ApplyRemoteChange(sender, ch)
-        applied = applied + 1
+        -- Option A + safety: NEVER apply deletes via sync. Ignore them.
+        if ch.op == "delete" then
+          stats.deletes_ignored = stats.deletes_ignored + 1
+        elseif ch.op == "upsert" and ch.entry then
+          if ch.kind == "P" then
+            local existed = (d.players and d.players[ch.key] ~= nil)
+            DB:ApplyRemoteChange(sender, ch)
+            stats.applied = stats.applied + 1
+            if existed then stats.p_updated = stats.p_updated + 1 else stats.p_added = stats.p_added + 1 end
+          elseif ch.kind == "G" then
+            local existed = (d.guilds and d.guilds[ch.key] ~= nil)
+            DB:ApplyRemoteChange(sender, ch)
+            stats.applied = stats.applied + 1
+            if existed then stats.g_updated = stats.g_updated + 1 else stats.g_added = stats.g_added + 1 end
+          else
+            -- unknown kind
+            stats.ignored = stats.ignored + 1
+          end
+        else
+          stats.ignored = stats.ignored + 1
+        end
       end
     end
   end
-  Notifier:Chat(string.format(L.SYNC_RECEIVED, sender))
-  Notifier:Chat(("Applied %d changes."):format(applied))
-  Notifier:Chat(L.SYNC_DONE)
+
+  -- One-line summary (local chat only)
+  Notifier:Chat((
+    "|cffd20ff7KillOnSight|r: Sync from %s complete — KoS +%d / ~%d, Guild +%d / ~%d, deletes ignored %d, ignored %d"
+  ):format(tostring(sender), stats.p_added, stats.p_updated, stats.g_added, stats.g_updated, stats.deletes_ignored, stats.ignored))
+
   if KillOnSight_GUI and KillOnSight_GUI.RefreshAll then
     KillOnSight_GUI:RefreshAll()
   end
@@ -249,6 +285,9 @@ end
 function Sync:OnMessage(prefix, msg, channel, sender)
   if prefix ~= PREFIX then return end
   if sender == UnitName("player") then return end
+  if channel ~= "GUILD" then return end
+  if not IsInGuild() then return end
+
 
   local cmd, rest = strsplit("|", msg, 2)
   cmd = cmd or ""
@@ -262,14 +301,15 @@ function Sync:OnMessage(prefix, msg, channel, sender)
     return
   end
 
-  if cmd == "RESET" then
-    -- Sender is providing a full snapshot; wipe local tables so state matches exactly.
-    local d = DB:GetData()
-    d.players = {}
-    d.guilds  = {}
-    rx[sender] = nil
+  if cmd == "ERR" then
+    local code, a, b = strsplit("|", rest or "", 3)
+    if code == "TOO_OLD" then
+      Notifier:Chat((L.SYNC_TOO_OLD or "Sync failed: peer is too far behind (oldest=%s, current=%s)." ):format(tostring(a or "?"), tostring(b or "?")))
+    end
     return
   end
+
+
 
   if cmd == "REQ" then
     if not CanSync() then return end
@@ -282,7 +322,7 @@ function Sync:OnMessage(prefix, msg, channel, sender)
     local oldest = GetOldestSeq() or 0
 
     -- If they've requested a seq older than what we still retain, we cannot build a correct diff.
-    -- Send a snapshot with a RESET so their DB matches ours exactly.
+    -- If peer is too far behind, we refuse a full resync (resync removed for safety).
     local useSnapshot = (theirSeq < (oldest - 1))
 
     local diff = nil
@@ -304,9 +344,10 @@ function Sync:OnMessage(prefix, msg, channel, sender)
     end
 
     if useSnapshot then
-      -- Reset and send a snapshot (upserts for all current entries).
-      Send(ch, ("RESET|%s|%s"):format(tostring(d.revision or 0), tostring(d.changeSeq or 0)))
-      lines = BuildSnapshotLines()
+      -- Peer is too far behind our local change journal; cannot safely resync without a destructive reset.
+      -- They should ask again after both sides have a longer journal, or clear their local lists manually if desired.
+      Send(ch, ("ERR|TOO_OLD|%s|%s"):format(tostring(oldest or 0), tostring(d.changeSeq or 0)))
+      return
     end
 
     if (not lines) or #lines == 0 then
