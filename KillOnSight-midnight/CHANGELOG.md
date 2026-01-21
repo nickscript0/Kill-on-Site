@@ -1,5 +1,10 @@
 # KillOnSight – Changelog
 
+## Version 3.0.8 (Retail Midnight)
+- **Disable Nearby detector on Retail**
+  - Prevents repeated forbidden-action errors and UI lockouts
+  - Portraits no lonher show on KoS targets in BG and stats no longer log in BG due to blizzard API changes
+  
 ## Version 3.0.7 (Retail Midnight Stability Update)
 
 ### 🚀 Retail (Patch 12.0 / Midnight)

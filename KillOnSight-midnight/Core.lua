@@ -7,6 +7,57 @@ local Core = CreateFrame("Frame")
 -- Project detection (Retail vs Classic variants)
 local IS_RETAIL = (WOW_PROJECT_ID and WOW_PROJECT_MAINLINE and WOW_PROJECT_ID == WOW_PROJECT_MAINLINE) or false
 
+-- Retail 12.x (Midnight): Battleground/Arena can return protected 'secret values' for unit data.
+-- Rather than fighting the API, we hard-disable Nearby/Detector processing inside PvP instances.
+local function IsInPvPInstance()
+  if not IS_RETAIL then return false end
+  if not IsInInstance then return false end
+  local ok, inInstance, instType = pcall(IsInInstance)
+  if not ok then return false end
+  return (inInstance and (instType == "pvp" or instType == "arena")) and true or false
+end
+
+local function ApplyPvPInstanceDisableState(isPvP)
+  -- isPvP: boolean (pvp/arena instances on Retail)
+  Core._bgDisabled = isPvP and true or false
+
+  local Nearby = _G.KillOnSight_Nearby
+  if Nearby then
+    if Core._bgDisabled then
+      if Nearby.ClearAll then pcall(function() Nearby:ClearAll({ noRefresh = true }) end) end
+      if Nearby.StopTicker then pcall(function() Nearby:StopTicker() end) end
+    else
+      if Nearby.StartTicker then pcall(function() Nearby:StartTicker() end) end
+      if Nearby.Refresh then pcall(function() Nearby:Refresh() end) end
+    end
+  end
+
+  local f = _G.KillOnSight_NearbyFrame
+  if f then
+    if Core._bgDisabled then
+      pcall(function() f:Hide() end)
+    else
+      -- Respect user's setting (showNearbyFrame). If enabled, show and refresh.
+      local DB = _G.KillOnSight_DB
+      local prof = DB and DB.GetProfile and DB:GetProfile()
+      local wantShown = not (prof and prof.showNearbyFrame == false)
+      pcall(function()
+        if wantShown then f:Show() else f:Hide() end
+      end)
+      if Nearby and Nearby.Refresh then pcall(function() Nearby:Refresh() end) end
+    end
+  end
+
+  if Core._bgDisabled and not Core._bgDisableWarned then
+    Core._bgDisableWarned = true
+    local prefix = (KillOnSight_L and KillOnSight_L.ADDON_PREFIX) or 'KILLONSIGHT'
+    if DEFAULT_CHAT_FRAME and DEFAULT_CHAT_FRAME.AddMessage then
+      DEFAULT_CHAT_FRAME:AddMessage('|cff00d0ff'..prefix..':|r Nearby is disabled in battlegrounds/arenas on Retail 12.x (Midnight).')
+    end
+  end
+end
+
+
 local band = (bit and bit.band) or (bit32 and bit32.band)
 
 local function GetDB() return _G.KillOnSight_DB end
@@ -138,7 +189,7 @@ local function EnsureName(rest)
 end
 
 local function AddPlayer(rest)
-  local DB = GetDB()
+  local DB = _G.KillOnSight_DB
   local Notifier = GetNotifier()
   if not DB or not Notifier then return end
 
@@ -152,7 +203,7 @@ local function AddPlayer(rest)
 end
 
 local function RemovePlayer(rest)
-  local DB = GetDB()
+  local DB = _G.KillOnSight_DB
   local Notifier = GetNotifier()
   if not DB or not Notifier then return end
 
@@ -168,7 +219,7 @@ local function RemovePlayer(rest)
 end
 
 local function AddGuild(rest)
-  local DB = GetDB()
+  local DB = _G.KillOnSight_DB
   local Notifier = GetNotifier()
   if not DB or not Notifier then return end
 
@@ -182,7 +233,7 @@ local function AddGuild(rest)
 end
 
 local function RemoveGuild(rest)
-  local DB = GetDB()
+  local DB = _G.KillOnSight_DB
   local Notifier = GetNotifier()
   if not DB or not Notifier then return end
 
@@ -198,7 +249,7 @@ local function RemoveGuild(rest)
 end
 
 local function List()
-  local DB = GetDB()
+  local DB = _G.KillOnSight_DB
   if not DB then return end
   local d = DB:GetData()
   local function count(t)
@@ -243,7 +294,7 @@ SlashCmdList["KILLONSIGHT"] = function(msg)
     return
   end
   if cmd == 'statsprune' then
-    local DB = GetDB()
+    local DB = _G.KillOnSight_DB
     if not DB then return end
     local prof = DB.GetProfile and DB:GetProfile() or {}
     local sub, arg = SplitFirst((rest or ""):lower())
@@ -437,7 +488,7 @@ end
 -- We retry periodically and enrich existing entries (Attackers/Stats) when guild becomes available.
 local guildResolveTicker
 local function ResolvePendingGuilds()
-  local DB = GetDB()
+  local DB = _G.KillOnSight_DB
   if not DB or not DB.GetLastAttackers then return end
   local list = DB:GetLastAttackers()
   if not list or #list == 0 then return end
@@ -558,7 +609,7 @@ local function IsStealthAura(spellId, spellName)
 end
 
 local function HandleCombatLog()
-  local DB = GetDB()
+  local DB = _G.KillOnSight_DB
   local Notifier = GetNotifier and GetNotifier() or _G.KillOnSight_Notifier
   local Nearby = GetNearby()
   if not DB then return end
@@ -744,7 +795,7 @@ Core:SetScript("OnEvent", function(self, event, ...)
   if event == "ADDON_LOADED" then
     local addon = ...
     if addon ~= ADDON_NAME then return end
-    local DB = GetDB()
+    local DB = _G.KillOnSight_DB
     if DB then DB:Init() end
     -- Periodic stats pruning (optional; off by default)
     if DB and DB.PruneStatsPlayers and C_Timer and C_Timer.NewTicker then
@@ -776,6 +827,8 @@ Core:SetScript("OnEvent", function(self, event, ...)
   end
 
 	  if event == "PLAYER_ENTERING_WORLD" then
+    ApplyPvPInstanceDisableState(IsInPvPInstance())
+    if Core._bgDisabled then return end
 	    if Detector then Detector:CheckUnit("target") end
 	    if GUI then GUI:RefreshAll() end
 	    -- Print sync warning first (if any), then the Retail nameplate limitation warning.
@@ -785,12 +838,14 @@ Core:SetScript("OnEvent", function(self, event, ...)
 	  end
 
   if event == "PLAYER_TARGET_CHANGED" then
+    if Core._bgDisabled then return end
     if Detector then Detector:CheckUnit("target") end
     if GUI then GUI:RefreshAll() end
     return
   end
 
   if event == "UPDATE_MOUSEOVER_UNIT" then
+    if Core._bgDisabled then return end
     if Detector then Detector:CheckUnit("mouseover") end
     return
   end
@@ -806,12 +861,14 @@ Core:SetScript("OnEvent", function(self, event, ...)
   end
 
   if event == "NAME_PLATE_UNIT_ADDED" then
+    if Core._bgDisabled then return end
     local unit = ...
     if Detector then Detector:CheckUnit(unit) end
     return
   end
 
   if event == "NAME_PLATE_UNIT_REMOVED" then
+    if Core._bgDisabled then return end
     local unit = ...
     -- Nearby list is pruned by ticker; no hard remove needed here.
     -- Retail: use removal as an additional signal for stealth/vanish inference (no CLEU).
@@ -822,6 +879,7 @@ Core:SetScript("OnEvent", function(self, event, ...)
   end
 
   if event == "UNIT_AURA" or event == "UNIT_SPELLCAST_START" or event == "UNIT_SPELLCAST_STOP" or event == "UNIT_SPELLCAST_SUCCEEDED" or event == "UNIT_SPELLCAST_INTERRUPTED" or event == "UNIT_SPELLCAST_FAILED" or event == "UNIT_FLAGS" or event == "UNIT_FACTION" then
+    if Core._bgDisabled then return end
     local unit = ...
     if unit and (unit == "target" or unit == "mouseover" or unit:match('^nameplate')) then
       if Detector then Detector:CheckUnit(unit) end

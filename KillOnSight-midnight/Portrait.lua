@@ -29,9 +29,18 @@ local function RunRetail()
 
   local f = CreateFrame("Frame")
 
+  local function SafeToString(v)
+    local ok, s = pcall(tostring, v)
+    if not ok or type(s) ~= "string" or s == "" then return nil end
+    return s
+  end
+
   local function NormalizeName(name)
-    if not name then return nil end
-    return name:match("^([^%-]+)") or name
+    local s = SafeToString(name)
+    if not s then return nil end
+    -- Strip realm suffix if present (Name-Realm)
+    local short = s:match("^([^%-]+)")
+    return short or s
   end
 
   -- Works with both the current refactor DB object and older direct-table layouts.
@@ -59,9 +68,12 @@ local function RunRetail()
 
   local function IsKoSTarget()
     if not UnitExists("target") or not UnitIsPlayer("target") then return false end
-    local n, realm = UnitName("target")
+    local rawN, rawR = UnitName("target")
+    local n = SafeToString(rawN)
+    local realm = SafeToString(rawR)
     local short = NormalizeName(n)
     if not short then return false end
+    if not n then return false end
 
     local players = select(1, GetDataTables())
     if not players then return false end
@@ -69,7 +81,7 @@ local function RunRetail()
     local keyShort = short:lower()
     if players[keyShort] then return true end
 
-    if realm and realm ~= "" then
+    if realm then
       local keyFull = (n .. "-" .. realm):lower()
       if players[keyFull] then return true end
     end
@@ -79,8 +91,9 @@ local function RunRetail()
 
   local function IsGuildKoSTarget()
     if not UnitExists("target") or not UnitIsPlayer("target") then return false end
-    local guildName = GetGuildInfo("target")
-    if not guildName or guildName == "" then return false end
+    local rawGuildName = GetGuildInfo("target")
+    local guildName = SafeToString(rawGuildName)
+    if not guildName then return false end
 
     local _, guilds = GetDataTables()
     if not guilds then return false end
@@ -270,6 +283,8 @@ local function RunRetail()
   -- ------------------------------------------------------------
 
   local function Update()
+    local Core = _G.KillOnSight_Core
+    if Core and Core._bgDisabled then return end
     if not UnitExists("target") then
       ApplyOverlay("none")
       RestoreTargetFrameArt()
@@ -350,9 +365,18 @@ local function RunClassic()
   local ORIGINAL_TEXTURE
   local ORIGINAL_VC
 
+  local function SafeToString(v)
+    local ok, s = pcall(tostring, v)
+    if not ok or type(s) ~= "string" or s == "" then return nil end
+    return s
+  end
+
   local function NormalizeName(name)
-    if not name then return nil end
-    return name:match("^([^%-]+)") or name
+    local s = SafeToString(name)
+    if not s then return nil end
+    -- Strip realm suffix if present (Name-Realm)
+    local short = s:match("^([^%-]+)")
+    return short or s
   end
 
   local function GetTargetFrameTexture()
@@ -400,9 +424,12 @@ local function RunClassic()
 
   local function IsKoSTarget()
     if not UnitExists("target") or not UnitIsPlayer("target") then return false end
-    local n, r = UnitName("target")
+    local rawN, rawR = UnitName("target")
+    local n = SafeToString(rawN)
+    local realm = SafeToString(rawR)
     local short = NormalizeName(n)
     if not short then return false end
+    if not n then return false end
 
     local DB = _G.KillOnSight_DB
     if not DB or not DB.GetData then return false end
@@ -412,8 +439,8 @@ local function RunClassic()
     local keyShort = short:lower()
     if data.players[keyShort] then return true end
 
-    if r and r ~= "" then
-      local keyFull = (n .. "-" .. r):lower()
+    if realm then
+      local keyFull = (n .. "-" .. realm):lower()
       if data.players[keyFull] then return true end
     end
 
@@ -422,8 +449,9 @@ local function RunClassic()
 
   local function IsGuildKoSTarget()
     if not UnitExists("target") or not UnitIsPlayer("target") then return false end
-    local guildName = GetGuildInfo("target")
-    if not guildName or guildName == "" then return false end
+    local rawGuildName = GetGuildInfo("target")
+    local guildName = SafeToString(rawGuildName)
+    if not guildName then return false end
 
     local DB = _G.KillOnSight_DB
     if not DB or not DB.GetData then return false end
@@ -462,6 +490,8 @@ local function RunClassic()
   end
 
   local function Update()
+    local Core = _G.KillOnSight_Core
+    if Core and Core._bgDisabled then return end
     if not GetTargetFrameTexture() then
       if C_Timer and C_Timer.After then
         C_Timer.After(0.2, Update)
