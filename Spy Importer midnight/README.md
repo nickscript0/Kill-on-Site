@@ -1,4 +1,4 @@
-# KillOnSight Spy Importer (Retail 12.0.x)
+# KillOnSight Spy Importer for Midnight (Retail 12.0.x)
 
 This tool allows you to **import your Kill-On-Sight (KoS) list from Spy** into **KillOnSight**, even though Spy no longer loads on Retail 12.0.x (Midnight).
 
@@ -46,7 +46,7 @@ World of Warcraft
           └─ <YourAccountName>
              └─ SavedVariables
 ```
-
+## Download here - [KillOnSight-Spy-Importer.zip](https://github.com/milestorme/Kill-on-Site/releases/download/release/KillOnSight-Spy-Importer.zip)
 ---
 
 ## ▶ How to use the importer
