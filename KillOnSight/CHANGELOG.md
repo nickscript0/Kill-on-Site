@@ -17,10 +17,8 @@
 - Improved safety around cross-realm data handling.
 - Hardened sync logic against malformed or unexpected messages.
 
----
 
 ## Version 3.0.7 
-
 
 ### 🛡️ Notification & Zone Rules
 - **Sanctuary zones now fully respected**
