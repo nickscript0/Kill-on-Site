@@ -63,7 +63,7 @@ KillOnSight can import KoS entries from **Spy** if Spy has been enabled at least
 
 ## Installation
 
-1. Download the addon [zip](https://github.com/milestorme/Kill-on-Site/blob/main/KillOnSight-3.0.6.zip).
+1. Download the addon from [Curseforge](https://www.curseforge.com/wow/addons/kill-on-sight).
 2. Extract into your WoW AddOns folder:
    - Retail: `World of Warcraft/_retail_/Interface/AddOns/`
    - Classic-era variants: <br>`World of Warcraft/_classic_/Interface/AddOns/` <br>
