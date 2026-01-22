@@ -143,8 +143,12 @@ local function GetUnitGuild(unit)
 end
 
 local function GetUnitNameSafe(unit)
-  local name = UnitName and UnitName(unit)
-  if not name or name == "" then return nil end
+  if not unit or unit == "" then return nil end
+  if not UnitName then return nil end
+  local ok, raw = pcall(UnitName, unit)
+  if not ok then return nil end
+  local ok2, name = pcall(tostring, raw)
+  if not ok2 or type(name) ~= "string" or name == "" then return nil end
   return name
 end
 
@@ -153,7 +157,10 @@ local function UnitTargetsPlayer(unit)
   if not unit or unit == "" then return false end
   if not UnitExists or not UnitIsUnit then return false end
   local u = unit .. "target"
-  return UnitExists(u) and UnitIsUnit(u, "player")
+  local ok1, exists = pcall(UnitExists, u)
+  if not ok1 or exists ~= true then return false end
+  local ok2, isunit = pcall(UnitIsUnit, u, "player")
+  return (ok2 and isunit == true) or false
 end
 
 -- Throttle notifications per key (player/guild) using profile throttleSeconds.
@@ -174,7 +181,10 @@ end
 -- Retail: combat-entry correlation window (short-lived confidence boost).
 local combatWindowUntil = 0
 local function InCombatWindow()
-  return IS_RETAIL and GetTime and (GetTime() < combatWindowUntil) or false
+  if not IS_RETAIL or not GetTime then return false end
+  local ok, t = pcall(GetTime)
+  if not ok or type(t) ~= "number" then return false end
+  return (t < combatWindowUntil) and true or false
 end
 
 -- Retail: track recent hostile engagements for BG win attribution (best-effort, no CLEU).
@@ -189,17 +199,29 @@ local Detector = {}
 function Detector:OnNameplateRemoved(unit)
   if not IS_RETAIL then return end
   if not unit or unit == "" then return end
+  -- If Core has disabled detection (BG/Arena or PvE instances), ignore nameplate events entirely.
+  if _G.KillOnSight_Core and (_G.KillOnSight_Core._bgDisabled or _G.KillOnSight_Core._instDisabled) then return end
   if not UnitGUID or not UnitName then return end
 
-  local guid = UnitGUID(unit)
-  local name = UnitName(unit)
-  if not guid or not name or name == "" then return end
-  if not guid:match('^Player%-') then return end
+  local okG, guid = pcall(UnitGUID, unit)
+  if not okG or not guid then return end
+
+  local okN, name = pcall(UnitName, unit)
+  if not okN or name == nil then return end
+
+  -- Some Retail/Midnight builds return protected "secret values" that can throw on compare or string ops.
+  local okEmpty, isEmpty = pcall(function() return name == "" end)
+  if not okEmpty or isEmpty then return end
+
+  local okMatch, isPlayer = pcall(function() return type(guid) == "string" and guid:match("^Player%-") ~= nil end)
+  if not okMatch or not isPlayer then return end
 
   -- Mark not visible for inference purposes.
   visibleStateByGUID[guid] = false
 
-  local k = name:lower()
+  local okLower, k = pcall(string.lower, name)
+  if not okLower or not k then return end
+
   local e = recentEngagements[k]
   if not e or type(e) ~= "table" or not e.t or not GetTime then return end
 
@@ -207,48 +229,10 @@ function Detector:OnNameplateRemoved(unit)
   if age > 5 then return end
 
   -- Only notify if we haven't already marked them as stealthed.
-  if stealthStateByGUID[guid] then return end
-
-  -- Use existing notifier pipeline.
-  CheckStealthTransition(unit, name, e.classFile, e.guild, guid, true)
-end
-
--- Store basic identity + any resolved metadata so Stats can backfill class/guild on win/loss.
-local function TrackEngagement(name, classFile, guild, guid)
-  if not IS_RETAIL or not name or name == "" or not GetTime then return end
-  local k = name:lower()
-  local e = recentEngagements[k]
-  if not e then e = {} ; recentEngagements[k] = e end
-  e.t = GetTime()
-  e.name = name
-  if guid and guid ~= "" then e.guid = guid end
-  if classFile and classFile ~= "" then e.classFile = classFile end
-  if guild and guild ~= "" then e.guild = guild end
-end
-
--- Retail: UnitClass() can return nil briefly right as a nameplate appears.
--- Retry a couple of times to improve class color resolution for stats/UI.
-local classRetry = {}
-local function ScheduleClassRetry(unit, guid, tries, forceNearby)
-  if not IS_RETAIL or not C_Timer or not C_Timer.After then return end
-  if not guid or guid == "" then return end
-  tries = tries or 0
-  if tries >= 2 then return end
-  local key = guid .. ":" .. tostring(tries)
-  if classRetry[key] then return end
-  classRetry[key] = true
-  local delay = (tries == 0) and 0.15 or 0.35
-  C_Timer.After(delay, function()
-    classRetry[key] = nil
-    if UnitExists and UnitExists(unit) and UnitGUID and UnitGUID(unit) == guid then
-      if Detector and Detector.CheckUnit then
-        Detector:CheckUnit(unit, forceNearby)
-      end
-      ScheduleClassRetry(unit, guid, tries + 1, forceNearby)
-    end
+  pcall(function()
+    CheckStealthTransition(guid, name, true, "NameplateRemoved")
   end)
 end
-
 function Detector:PopMostRecentEngagement()
   if not IS_RETAIL or not GetTime then return nil end
   local now = GetTime()

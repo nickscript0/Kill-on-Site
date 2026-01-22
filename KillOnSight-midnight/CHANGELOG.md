@@ -1,5 +1,34 @@
 # KillOnSight – Changelog
 
+## 3.0.9 (Retail / Midnight 12.0.0)
+
+### Stability & Crash Fixes
+- Fixed multiple Retail 12.0.0 crashes caused by Blizzard returning protected
+  **“secret values”** for unit names.
+- Hardened all nameplate removal handling to safely normalize unit names
+  without string comparisons or method calls on protected values.
+- Fixed boolean-test crashes caused by protected return values from
+  `UnitTargetsPlayer()` and combat-window checks.
+
+### Instance Safety
+- Disabled Nearby / Detector processing inside:
+  - Battlegrounds
+  - Arenas
+  - Dungeons (including Mythic+)
+  - Raids
+  - Scenarios
+- Prevents Retail 12.x API edge cases and taint during instanced content.
+- Nearby list is automatically cleared and hidden when entering instances.
+
+### Data Handling
+- Improved Retail name handling using `pcall` + `tostring` normalization.
+- No changes to SavedVariables structure.
+- No data loss or destructive behavior introduced.
+
+
+---
+
+
 ## Version 3.0.8 (Retail Midnight)
 - **Disable Nearby detector on Retail**
   - Prevents repeated forbidden-action errors and UI lockouts

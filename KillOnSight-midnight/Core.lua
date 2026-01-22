@@ -7,14 +7,48 @@ local Core = CreateFrame("Frame")
 -- Project detection (Retail vs Classic variants)
 local IS_RETAIL = (WOW_PROJECT_ID and WOW_PROJECT_MAINLINE and WOW_PROJECT_ID == WOW_PROJECT_MAINLINE) or false
 
--- Retail 12.x (Midnight): Battleground/Arena can return protected 'secret values' for unit data.
--- Rather than fighting the API, we hard-disable Nearby/Detector processing inside PvP instances.
+-- Retail 12.x (Midnight): instances can return protected 'secret values' for unit data.
+-- Rather than fighting the API in restricted contexts, we hard-disable Nearby/Detector processing
+-- inside PvP instances and also inside PvE instances (party/raid/scenario) on Retail/Midnight.
+
 local function IsInPvPInstance()
   if not IS_RETAIL then return false end
   if not IsInInstance then return false end
   local ok, inInstance, instType = pcall(IsInInstance)
   if not ok then return false end
   return (inInstance and (instType == "pvp" or instType == "arena")) and true or false
+end
+
+local function IsInPvEInstance()
+  if not IS_RETAIL then return false end
+  if not IsInInstance then return false end
+  local ok, inInstance, instType = pcall(IsInInstance)
+  if not ok then return false end
+  return (inInstance and (instType == "party" or instType == "raid" or instType == "scenario")) and true or false
+end
+
+local function ApplyPvEInstanceDisableState(isPvE)
+  Core._instDisabled = isPvE and true or false
+
+  local Nearby = _G.KillOnSight_Nearby
+  if Nearby then
+    if Core._instDisabled then
+      if Nearby.ClearAll then pcall(function() Nearby:ClearAll() end) end
+      if Nearby.StopTicker then pcall(function() Nearby:StopTicker() end) end
+    else
+      if Nearby.StartTicker then pcall(function() Nearby:StartTicker() end) end
+      if Nearby.Refresh then pcall(function() Nearby:Refresh() end) end
+    end
+  end
+
+  local f = _G.KillOnSight_NearbyFrame
+  if f and Core._instDisabled and f.Hide then
+    pcall(function() f:Hide() end)
+  end
+
+  if _G.KillOnSight and KillOnSight.GUI and KillOnSight.GUI.RefreshAll then
+    pcall(function() KillOnSight.GUI:RefreshAll() end)
+  end
 end
 
 local function ApplyPvPInstanceDisableState(isPvP)
@@ -158,7 +192,7 @@ local function StartNearbyNameplateScan()
     for _, plate in ipairs(plates) do
       local unit = plate and plate.namePlateUnitToken
       if unit then
-        Detector:CheckUnit(unit)
+        if not Core._bgDisabled and not Core._instDisabled then Detector:CheckUnit(unit) end
       end
     end
   end)
@@ -828,8 +862,9 @@ Core:SetScript("OnEvent", function(self, event, ...)
 
 	  if event == "PLAYER_ENTERING_WORLD" then
     ApplyPvPInstanceDisableState(IsInPvPInstance())
+    ApplyPvEInstanceDisableState(IsInPvEInstance())
     if Core._bgDisabled then return end
-	    if Detector then Detector:CheckUnit("target") end
+	    if Detector and not Core._bgDisabled and not Core._instDisabled then Detector:CheckUnit("target") end
 	    if GUI then GUI:RefreshAll() end
 	    -- Print sync warning first (if any), then the Retail nameplate limitation warning.
 	    if Sync then Sync:Hello() end
@@ -839,14 +874,14 @@ Core:SetScript("OnEvent", function(self, event, ...)
 
   if event == "PLAYER_TARGET_CHANGED" then
     if Core._bgDisabled then return end
-    if Detector then Detector:CheckUnit("target") end
+    if Detector and not Core._bgDisabled and not Core._instDisabled then Detector:CheckUnit("target") end
     if GUI then GUI:RefreshAll() end
     return
   end
 
   if event == "UPDATE_MOUSEOVER_UNIT" then
     if Core._bgDisabled then return end
-    if Detector then Detector:CheckUnit("mouseover") end
+    if Detector and not Core._bgDisabled and not Core._instDisabled then Detector:CheckUnit("mouseover") end
     return
   end
 
@@ -863,7 +898,7 @@ Core:SetScript("OnEvent", function(self, event, ...)
   if event == "NAME_PLATE_UNIT_ADDED" then
     if Core._bgDisabled then return end
     local unit = ...
-    if Detector then Detector:CheckUnit(unit) end
+    if Detector and not Core._bgDisabled and not Core._instDisabled then if not Core._bgDisabled and not Core._instDisabled then Detector:CheckUnit(unit) end end
     return
   end
 
@@ -882,7 +917,7 @@ Core:SetScript("OnEvent", function(self, event, ...)
     if Core._bgDisabled then return end
     local unit = ...
     if unit and (unit == "target" or unit == "mouseover" or unit:match('^nameplate')) then
-      if Detector then Detector:CheckUnit(unit) end
+      if Detector and not Core._bgDisabled and not Core._instDisabled then if not Core._bgDisabled and not Core._instDisabled then Detector:CheckUnit(unit) end end
     end
     return
   end
