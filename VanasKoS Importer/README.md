@@ -1,8 +1,7 @@
-# KillOnSight VanasKoS Importer (Retail 12.0.x)
+# KillOnSight VanasKoS Importer
 
 This tool allows you to **import explicit Kill-On-Sight (KoS) entries from VanasKoS**
-into **KillOnSight**, even though VanasKoS is no longer maintained or compatible with
-Retail 12.0.x (Midnight).
+into **KillOnSight**, even though VanasKoS is no longer maintained.
 
 The importer works **offline** (make sure game is closed before running or will not work), reads SavedVariables directly, and is **100% safe**:
 it will never delete or overwrite existing KillOnSight data.
@@ -138,7 +137,7 @@ Nothing is ever lost.
 
 ---
 
-## ℹ Notes for Retail 12.0.x (Midnight)
+## ℹ Notes 
 
 - VanasKoS stores large amounts of **non-KoS data**
 - This importer intentionally ignores everything except **explicit KoS lists**
