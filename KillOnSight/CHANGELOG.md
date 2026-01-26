@@ -1,7 +1,5 @@
 # KillOnSight – Changelog
 
-# KillOnSight – Changelog
-
 ## 3.0.9
 **Release type:** Stability & targeting reliability update  
 **Focus:** TBC Anniversary / Classic safety, Nearby List robustness

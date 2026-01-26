@@ -3,6 +3,7 @@
 ## Notes: Kill on Sight notifier and tracking addon (Classic)
 ## Author: Milestorme
 ## Version: 3.0.9
+## Category: Combat
 ## IconTexture: Interface/AddOns/KillOnSight/icon.tga
 ## SavedVariables: KillOnSightDB
 ## X-Localizations: enUS, deDE, frFR, esES, esMX, itIT, ptBR, ptPT, ruRU, koKR, zhCN, zhTW, jaJP, nlNL, daDK, plPL
