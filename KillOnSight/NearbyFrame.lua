@@ -30,6 +30,37 @@ local function IsInGoblinTown()
   return sub == bb or mini == bb or sub == gz or mini == gz
 end
 
+
+-- Project detection (Lua 5.1 compatible): use WOW_PROJECT_ID when available.
+local function IsClassicOrTBCProject()
+  if not WOW_PROJECT_ID then return false end
+  if WOW_PROJECT_CLASSIC and WOW_PROJECT_ID == WOW_PROJECT_CLASSIC then return true end
+  if WOW_PROJECT_BURNING_CRUSADE_CLASSIC and WOW_PROJECT_ID == WOW_PROJECT_BURNING_CRUSADE_CLASSIC then return true end
+  return false
+end
+
+local function StripRealmSuffix(name)
+  if not name or name == "" then return name end
+  -- Player names cannot contain '-' normally; this safely removes cross-realm suffixes.
+  return (tostring(name):gsub("%-.*$", ""))
+end
+
+local function NormalizeNameForCompare(name)
+  if not name then return "" end
+  name = tostring(name)
+  name = name:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+  if IsClassicOrTBCProject() then
+    name = StripRealmSuffix(name)
+  end
+  return name
+end
+
+local function MacroTargetNameForEntry(e)
+  local tname = (e and (e.fullName or e.name)) or ""
+  tname = NormalizeNameForCompare(tname)
+  return tname
+end
+
 local Nearby = {
   frame = nil,
   scroll = nil,
@@ -477,18 +508,27 @@ end
 
 local function SortedEntries(self)
   local activeKoS, inactiveKoS, active, inactive = {}, {}, {}, {}
+  local now = (GetTime and GetTime()) or 0
   for _, e in pairs(self.entries) do
-    if e.kosType == L.KOS or e.kosType == L.GUILD_KOS then
-      if e.state == "inactive" then
-        inactiveKoS[#inactiveKoS+1] = e
+    local skip = false
+    if e._kosLayerFilteredUntil and now < e._kosLayerFilteredUntil then
+      skip = true
+    elseif e._kosLayerFilteredUntil then
+      e._kosLayerFilteredUntil = nil
+    end
+    if not skip then
+      if e.kosType == L.KOS or e.kosType == L.GUILD_KOS then
+        if e.state == "inactive" then
+          inactiveKoS[#inactiveKoS+1] = e
+        else
+          activeKoS[#activeKoS+1] = e
+        end
       else
-        activeKoS[#activeKoS+1] = e
-      end
-    else
-      if e.state == "inactive" then
-        inactive[#inactive+1] = e
-      else
-        active[#active+1] = e
+        if e.state == "inactive" then
+          inactive[#inactive+1] = e
+        else
+          active[#active+1] = e
+        end
       end
     end
   end
@@ -605,7 +645,7 @@ local function UpdateScroll(self)
 
   -- IMPORTANT (combat / battleground reliability):
   -- SecureActionButtonTemplate attributes (type/macrotext) are protected during combat.
-  -- If we continue to reassign row.entry + labels in combat (common in battlegrounds),
+  -- If we keep trying to reassign row.entry + labels in combat (common in battlegrounds),
   -- the displayed name can diverge from the secure macro target, causing "sometimes" targeting.
   --
   -- Strategy: while in combat, keep the row display stable and defer the full refresh
@@ -629,7 +669,7 @@ local function UpdateScroll(self)
         row:SetAttribute("type1", "macro")
         -- Use macrotext1 (paired with type1). Also set macrotext for maximum compatibility
         -- across client variants that may read the un-suffixed attribute.
-        local tname = e.fullName or e.name or ""
+        local tname = MacroTargetNameForEntry(e)
         row:SetAttribute("macrotext1", "/targetexact " .. tname)
         row:SetAttribute("macrotext",  "/targetexact " .. tname)
       end
@@ -780,11 +820,9 @@ function Nearby:Create()
       -- Cannot change secure attributes during combat.
       if InCombatLockdown and InCombatLockdown() then return end
       -- Use full cross-realm name when available; fall back to short name.
-      local tname = e.fullName or e.name or ""
+      -- Use normalized name for secure /targetexact (strip colors; Classic/TBC remove -Realm suffix).
+      local tname = MacroTargetNameForEntry(e)
       if tname == "" then return end
-      -- Strip any accidental color codes.
-      tname = tname:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
-      -- Set macrotext just-in-time (out of combat only).
       selfBtn:SetAttribute("macrotext1", "/targetexact " .. tname)
       selfBtn:SetAttribute("macrotext",  "/targetexact " .. tname)
     end)
@@ -817,23 +855,48 @@ function Nearby:Create()
 
     -- (Hidden/stealth indicator is rendered inline in the row text via a texture tag.)
 
-    b:SetScript("OnEnter", function(selfBtn)
-      selfBtn.bg:Show()
-      local e = selfBtn.entry
+    local function BuildNearbyTooltip(btn)
+      local e = btn.entry
       if not e then return end
-      GameTooltip:SetOwner(selfBtn, "ANCHOR_RIGHT")
+      GameTooltip:SetOwner(btn, "ANCHOR_RIGHT")
+      GameTooltip:ClearLines()
       GameTooltip:AddLine(e.name)
       if e.level then GameTooltip:AddLine((L.TT_LEVEL_FMT):format(e.level > 0 and e.level or "??"), 1,1,1) end
       if e.guild and e.guild ~= "" then GameTooltip:AddLine(e.guild, 0.8,0.8,0.8) end
       if e.zone and e.zone ~= "" then GameTooltip:AddLine(e.zone, 0.8,0.8,0.8) end
       if e.kosType == L.KOS then
-        GameTooltip:AddLine(L.TT_ON_KOS, 1,0.2,0.2)
+        GameTooltip:AddLine(L.TT_KOS, 1,0.2,0.2)
+      elseif e.kosType == L.GUILD then
+        GameTooltip:AddLine(L.TT_GUILD, 1,0.8,0.2)
       elseif e.kosType == L.GUILD_KOS then
         GameTooltip:AddLine(L.TT_GUILD_KOS, 1,0.8,0.2)
       elseif (e.isHidden == true) or (e.kosType == L.HIDDEN) then
         GameTooltip:AddLine("[" .. (L.HIDDEN or "Hidden") .. "]", 0.7,0.7,0.7)
       end
+      local now = (GetTime and GetTime()) or 0
+      if e._kosNotTargetableUntil and now < e._kosNotTargetableUntil then
+        GameTooltip:AddLine(L.TT_NOT_TARGETABLE or "Not targetable right now", 1,0.2,0.2)
+      elseif e._kosNotTargetableUntil then
+        e._kosNotTargetableUntil = nil
+      end
       GameTooltip:Show()
+    end
+
+    local function RefreshNearbyTooltip(btn)
+      if not btn then return end
+      if GameTooltip and GameTooltip:IsShown() then
+        if (GameTooltip.IsOwned and GameTooltip:IsOwned(btn)) or (btn.IsMouseOver and btn:IsMouseOver()) then
+          BuildNearbyTooltip(btn)
+        end
+      elseif btn.IsMouseOver and btn:IsMouseOver() then
+        BuildNearbyTooltip(btn)
+      end
+    end
+
+
+    b:SetScript("OnEnter", function(selfBtn)
+      selfBtn.bg:Show()
+      BuildNearbyTooltip(selfBtn)
     end)
     b:SetScript("OnLeave", function(selfBtn)
       selfBtn.bg:Hide()
@@ -844,7 +907,41 @@ function Nearby:Create()
       local e = selfBtn.entry
       if not e then return end
       if btn == "LeftButton" then
-        -- Left click targeting handled by SecureActionButtonTemplate (macrotext1).
+        -- Left click targeting is handled by SecureActionButtonTemplate (macrotext1).
+        -- After a short delay, verify whether we actually acquired the target.
+        local entry = e
+        if C_Timer and C_Timer.After then
+          C_Timer.After(0.18, function()
+            if not entry then return end
+            local now = (GetTime and GetTime()) or 0
+            local tn, tr = (UnitName and UnitName("target"))
+            if not tn or tn == "" then
+              entry._kosNotTargetableUntil = now + 30
+              RefreshNearbyTooltip(selfBtn)
+              RefreshNearbyTooltip(selfBtn)
+              return
+            end
+            local tfull = tn
+            if tr and tr ~= "" then tfull = tn .. "-" .. tr end
+            local targetNorm = NormalizeNameForCompare(tfull)
+            local entryNorm = NormalizeNameForCompare(entry.fullName or entry.name or "")
+            if targetNorm ~= "" and entryNorm ~= "" and targetNorm == entryNorm then
+              -- We successfully targeted them. If they are not attackable (and not friendly),
+              -- it is often a layering/cache ghost: hide this entry temporarily.
+              if UnitIsPlayer and UnitIsPlayer("target") then
+                local canAttack = (UnitCanAttack and UnitCanAttack("player", "target"))
+                local isFriend = (UnitIsFriend and UnitIsFriend("player", "target"))
+                if canAttack == false and isFriend == false and (not IsInSanctuary()) then
+                  entry._kosLayerFilteredUntil = now + 60
+                  RefreshNearbyTooltip(selfBtn)
+                end
+              end
+            else
+              entry._kosNotTargetableUntil = now + 30
+              RefreshNearbyTooltip(selfBtn)
+            end
+          end)
+        end
         return
       elseif btn == "RightButton" then
         ShowMenuFor(self, e)

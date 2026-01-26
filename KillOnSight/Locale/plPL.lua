@@ -141,3 +141,5 @@ L.UI_IMPORTSPY_RESULT = L.UI_IMPORTSPY_RESULT or "Spy import complete: %d added,
 L.UI_NOTES = "Notatki"
 
 L.RETAIL_NEARBY_LIMITED_NAMEPLATES_OFF = "Lista w pobliżu jest ograniczona, ponieważ wrogie tabliczki imion są WYŁĄCZONE. Włącz wrogie tabliczki imion (Interfejs > Nazwy), aby uzyskać pełne wykrywanie. Możesz przełączać klawiszem V."
+
+L["TT_NOT_TARGETABLE"] = "Nie można teraz namierzyć (poza zasięgiem / warstwa)"

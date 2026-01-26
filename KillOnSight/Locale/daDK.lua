@@ -176,3 +176,5 @@ L.UI_IMPORTSPY_RESULT = L.UI_IMPORTSPY_RESULT or "Spy import complete: %d added,
 L.UI_NOTES = "Noter"
 
 L.RETAIL_NEARBY_LIMITED_NAMEPLATES_OFF = "Nearby er begrænset fordi Fjendtlige navneskilte er SLÅET FRA. Aktivér Fjendtlige navneskilte (Interface > Navne) for fuld registrering. Du kan skifte med V-tasten."
+
+L["TT_NOT_TARGETABLE"] = "Kan ikke målrettes nu (uden for rækkevidde / lag)"

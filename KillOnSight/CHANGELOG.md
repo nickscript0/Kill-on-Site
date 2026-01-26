@@ -1,5 +1,44 @@
 # KillOnSight – Changelog
 
+# KillOnSight – Changelog
+
+## 3.0.9
+**Release type:** Stability & targeting reliability update  
+**Focus:** TBC Anniversary / Classic safety, Nearby List robustness
+
+### Fixed
+- Fixed multiple **Lua 5.1 compatibility issues** uncovered during hard structural audit.
+- Removed invalid / unsafe constructs from `NearbyFrame.lua` that could cause load or runtime errors.
+- Fixed tooltip update logic so **Nearby List tooltips refresh immediately while hovering** after click results (no re-hover required).
+- Fixed rare syntax hazards caused by partial or duplicated `SetScript()` lines.
+- Fixed targeting edge cases where entries could desync from their secure macro target.
+
+### Improved
+- **Greatly improved Nearby List targeting reliability on TBC Anniversary**:
+  - Better handling of name normalization for Classic/TBC clients.
+  - Safer post-click validation when targets are not attackable due to layering.
+- Added robust handling for **layer/cache ghost players**:
+  - Entries are temporarily suppressed when targeted but not attackable.
+  - Tooltip clearly indicates “not targetable right now” without removing entries permanently.
+- Tooltip logic is now fully centralized and refresh-safe.
+
+### Audit & Maintenance
+- Performed a **full hard parse-style audit** across all Lua files:
+  - Verified correct `function / end` and `repeat / until` structure.
+  - Verified XML validity.
+  - Verified TOC metadata consistency.
+- Unified addon versioning:
+  - All TOC files updated to **3.0.9**
+  - `Sync.lua` updated to `ADDON_VER = "3.0.9"`
+- Confirmed no Retail-only regressions introduced.
+
+### Notes
+- This version establishes **3.0.9 as a clean, audited baseline** for future development.
+- No gameplay logic or detection behavior was removed — changes are safety- and reliability-focused only.
+
+---
+
+
 ## 3.0.8 (Classic / TBC Anniversary)
 
 ### Sync
@@ -19,8 +58,26 @@
 
 ---
 
-## Version 3.0.7 
+## Version 3.0.7 (Retail Midnight Stability Update)
 
+### 🚀 Retail (Patch 12.0 / Midnight)
+- **Removed COMBAT_LOG_EVENT_UNFILTERED usage on Retail**
+  - Prevents repeated forbidden-action errors and UI lockouts
+  - Retail now uses unit-scoped and nameplate-based detection only
+- **Nearby detection reworked for Retail**
+  - Uses `NAME_PLATE_UNIT_ADDED`, target, and mouseover
+  - Added **distance filtering** to prevent far-range nameplates from flooding Nearby
+- **Enemy Nameplates requirement handling**
+  - When enemy nameplates are disabled:
+    - Nearby switches to a limited mode (target/mouseover only)
+    - A **localized warning** is shown (includes “press V” shortcut)
+  - Warning is shown **after sync messages** for better UX
+- **Attackers list disabled on Retail**
+  - Removed from UI and options
+  - Prevents misleading or unverifiable attacker data without combat log access
+- **Target frame fixes on Retail**
+  - Restored correct Blizzard target frame appearance
+  - Dragon indicators now overlay cleanly without altering frame art
 
 ### 🛡️ Notification & Zone Rules
 - **Sanctuary zones now fully respected**
@@ -30,6 +87,11 @@
 - **Booty Bay / Gadgetzan option hidden on Retail**
   - Option remains available for Classic / TBC where applicable
 
+### 🌍 Localization
+- Added new locale key:
+  - `RETAIL_NEARBY_LIMITED_NAMEPLATES_OFF`
+- Implemented across **all supported languages** with native translations
+- Removed hardcoded English warnings
 
 ### 🎨 UI & Layout Improvements
 - **Options UI width increased by 15%**
