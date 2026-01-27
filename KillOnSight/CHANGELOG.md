@@ -1,5 +1,21 @@
 # KillOnSight – Changelog
 
+## 3.1.0
+**Release type:** Nearby List reliability & tooltip improvements  
+**Primary focus:** Classic / TBC Anniversary
+
+### Improved
+- **Live Nearby List tooltip updates**
+  - Tooltip now updates in real time while hovering, without requiring mouse movement.
+- Improved handling of **players temporarily not targetable**.
+  - Entries are marked only while genuinely not targetable.
+  - Status clears immediately once the player becomes targetable again.
+- Improved Nearby List targeting reliability on **TBC Anniversary**.
+
+### Notes
+- Changes are limited to Nearby List behavior and tooltips.
+- No changes to detection logic, alerts, or Retail behavior.
+
 ## 3.0.9
 **Release type:** Stability & targeting reliability update  
 **Focus:** TBC Anniversary / Classic safety, Nearby List robustness

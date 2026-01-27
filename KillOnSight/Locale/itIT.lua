@@ -142,4 +142,4 @@ L.UI_NOTES = "Note"
 
 L.RETAIL_NEARBY_LIMITED_NAMEPLATES_OFF = "Vicini è limitato perché le barre dei nomi nemiche sono DISATTIVATE. Abilita le barre dei nomi nemiche (Interfaccia > Nomi) per il rilevamento completo. Puoi alternarle con il tasto V."
 
-L["TT_NOT_TARGETABLE"] = "Non bersagliabile ora (fuori portata / layer)"
+L["TT_NOT_TARGETABLE"] = "Non bersagliabile ora"

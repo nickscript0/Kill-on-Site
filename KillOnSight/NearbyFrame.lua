@@ -883,23 +883,123 @@ function Nearby:Create()
     end
 
     local function RefreshNearbyTooltip(btn)
-      if not btn then return end
-      if GameTooltip and GameTooltip:IsShown() then
-        if (GameTooltip.IsOwned and GameTooltip:IsOwned(btn)) or (btn.IsMouseOver and btn:IsMouseOver()) then
-          BuildNearbyTooltip(btn)
-        end
-      elseif btn.IsMouseOver and btn:IsMouseOver() then
-        BuildNearbyTooltip(btn)
+  if not btn then return end
+  if GameTooltip and GameTooltip:IsShown() then
+    if (GameTooltip.IsOwned and GameTooltip:IsOwned(btn)) or (btn.IsMouseOver and btn:IsMouseOver()) then
+      BuildNearbyTooltip(btn)
+    end
+  elseif btn.IsMouseOver and btn:IsMouseOver() then
+    BuildNearbyTooltip(btn)
+  end
+end
+
+-- If an entry was previously flagged as "not targetable" but later becomes targetable (layer swap / cache),
+-- clear the flag immediately while hovering so the tooltip updates without waiting for the timer to expire.
+local function MaybeClearTargetableFlags(btn)
+  if not btn or not btn.entry then return false end
+  local e = btn.entry
+  if not (e._kosNotTargetableUntil or e._kosLayerFilteredUntil) then return false end
+
+  local function namesMatch(fullA, fullB)
+    if not NormalizeNameForCompare then return (fullA or "") == (fullB or "") end
+    return NormalizeNameForCompare(fullA or "") == NormalizeNameForCompare(fullB or "")
+  end
+
+  -- Case 1: they are our current target and are now attackable OR friendly (i.e. real unit, not a ghost)
+  if UnitExists and UnitExists("target") and UnitIsPlayer and UnitIsPlayer("target") then
+    local tn, tr = UnitName("target")
+    local tfull = tn or ""
+    if tr and tr ~= "" then tfull = tfull .. "-" .. tr end
+    local entryName = e.fullName or e.name or ""
+    if namesMatch(tfull, entryName) then
+      local canAttack = UnitCanAttack and UnitCanAttack("player", "target")
+      local isFriend = UnitIsFriend and UnitIsFriend("player", "target")
+      if canAttack == true or isFriend == true then
+        e._kosNotTargetableUntil = nil
+        e._kosLayerFilteredUntil = nil
+        return true
       end
     end
+  end
 
+  -- Case 2 (Classic/TBC/Wrath): nameplate scan for a now-valid unit
+  if UnitExists and UnitIsPlayer and UnitCanAttack and UnitIsFriend then
+    local entryName = e.fullName or e.name or ""
+    for i = 1, 40 do
+      local unit = "nameplate" .. i
+      if UnitExists(unit) and UnitIsPlayer(unit) then
+        local n, r = UnitName(unit)
+        local full = n or ""
+        if r and r ~= "" then full = full .. "-" .. r end
+        if namesMatch(full, entryName) then
+          local canAttack = UnitCanAttack("player", unit)
+          local isFriend = UnitIsFriend("player", unit)
+          if canAttack == true or isFriend == true then
+            e._kosNotTargetableUntil = nil
+            e._kosLayerFilteredUntil = nil
+            return true
+          end
+        end
+      end
+    end
+  end
 
-    b:SetScript("OnEnter", function(selfBtn)
+  return false
+end
+
+-- Tooltip live-refresh while hovering:
+-- Updates the tooltip while the cursor stays on the row, so expiring/cleared flags are reflected immediately.
+function StopNearbyTooltipTicker(btn)
+  if not btn then return end
+  if btn._kosTooltipTicker then
+    if btn._kosTooltipTicker.Cancel then
+      btn._kosTooltipTicker:Cancel()
+    end
+    btn._kosTooltipTicker = nil
+  end
+  btn._kosTooltipTicking = nil
+end
+
+function StartNearbyTooltipTicker(btn)
+  if not btn or btn._kosTooltipTicker or btn._kosTooltipTicking then return end
+
+  local function tick()
+    if not btn or not GameTooltip then
+      StopNearbyTooltipTicker(btn)
+      return
+    end
+    local hovering = (btn.IsMouseOver and btn:IsMouseOver()) or (GameTooltip.IsOwned and GameTooltip:IsOwned(btn))
+    if not hovering then
+      StopNearbyTooltipTicker(btn)
+      return
+    end
+    MaybeClearTargetableFlags(btn)
+    BuildNearbyTooltip(btn)
+  end
+
+  if C_Timer and C_Timer.NewTicker then
+    btn._kosTooltipTicker = C_Timer.NewTicker(0.20, tick)
+  elseif C_Timer and C_Timer.After then
+    btn._kosTooltipTicking = true
+    local function loop()
+      if not btn or not btn._kosTooltipTicking then return end
+      tick()
+      if btn and btn._kosTooltipTicking then
+        C_Timer.After(0.20, loop)
+      end
+    end
+    C_Timer.After(0.20, loop)
+  end
+end
+
+b:SetScript("OnEnter", function(selfBtn)
       selfBtn.bg:Show()
       BuildNearbyTooltip(selfBtn)
+      _G._G.StartNearbyTooltipTicker(selfBtn)
     end)
     b:SetScript("OnLeave", function(selfBtn)
       selfBtn.bg:Hide()
+      _G._G.StopNearbyTooltipTicker(selfBtn)
       GameTooltip:Hide()
     end)
 
@@ -918,7 +1018,6 @@ function Nearby:Create()
             if not tn or tn == "" then
               entry._kosNotTargetableUntil = now + 30
               RefreshNearbyTooltip(selfBtn)
-              RefreshNearbyTooltip(selfBtn)
               return
             end
             local tfull = tn
@@ -936,7 +1035,14 @@ function Nearby:Create()
                   RefreshNearbyTooltip(selfBtn)
                 end
               end
-            else
+            
+                -- If they are targetable now, clear any previous not-targetable flags immediately.
+                if (canAttack == true) or (isFriend == true) then
+                  entry._kosNotTargetableUntil = nil
+                  entry._kosLayerFilteredUntil = nil
+                  RefreshNearbyTooltip(selfBtn)
+                end
+else
               entry._kosNotTargetableUntil = now + 30
               RefreshNearbyTooltip(selfBtn)
             end

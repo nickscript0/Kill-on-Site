@@ -142,4 +142,4 @@ L.UI_NOTES = "Notas"
 
 L.RETAIL_NEARBY_LIMITED_NAMEPLATES_OFF = "O modo Próximos é limitado porque as Placas de Nome inimigas estão DESLIGADAS. Ative as Placas de Nome inimigas (Interface > Nomes) para deteção completa. Pode alternar com a tecla V."
 
-L["TT_NOT_TARGETABLE"] = "Não é possível selecionar agora (fora de alcance / camada)"
+L["TT_NOT_TARGETABLE"] = "Não é possível selecionar agora"

@@ -174,4 +174,4 @@ L.UI_NOTES = "Notities"
 
 L.RETAIL_NEARBY_LIMITED_NAMEPLATES_OFF = "Dichtbij is beperkt omdat vijandelijke naamplaten UIT staan. Schakel vijandelijke naamplaten in (Interface > Namen) voor volledige detectie. Je kunt ze toggelen met de V-toets."
 
-L["TT_NOT_TARGETABLE"] = "Nu niet te targeten (buiten bereik / layer)"
+L["TT_NOT_TARGETABLE"] = "Nu niet te targeten"

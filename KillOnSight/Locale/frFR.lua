@@ -173,4 +173,4 @@ L.UI_NOTES = "Notes"
 
 L.RETAIL_NEARBY_LIMITED_NAMEPLATES_OFF = "La détection Proximité est limitée car les barres de nom ennemies sont DÉSACTIVÉES. Activez les barres de nom ennemies (Interface > Noms) pour une détection complète. Vous pouvez les basculer avec la touche V."
 
-L["TT_NOT_TARGETABLE"] = "Impossible à cibler pour le moment (hors portée / couche)"
+L["TT_NOT_TARGETABLE"] = "Impossible à cibler pour le moment"
