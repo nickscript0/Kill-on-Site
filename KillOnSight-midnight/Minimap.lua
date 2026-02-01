@@ -8,22 +8,19 @@ local Minimap = {}
 local icon = LibStub("LibDBIcon-1.0")
 local LDB  = LibStub("LibDataBroker-1.1")
 
--- EasyMenu shim (Classic-safe). Some libraries call EasyMenu; Classic doesn't always expose it.
-if not EasyMenu then
-  function EasyMenu(menuList, menuFrame, anchor, x, y, displayMode)
-    -- Minimal replacement using UIDropDownMenu APIs
-    if type(menuFrame) ~= "table" then
-      menuFrame = CreateFrame("Frame", "KillOnSight_EasyMenuShim", UIParent, "UIDropDownMenuTemplate")
-    end
-    UIDropDownMenu_Initialize(menuFrame, function(self, level)
-      for _,item in ipairs(menuList or {}) do
-        local info = UIDropDownMenu_CreateInfo()
-        for k,v in pairs(item) do info[k] = v end
-        UIDropDownMenu_AddButton(info, level)
-      end
-    end, displayMode or "MENU")
-    ToggleDropDownMenu(1, nil, menuFrame, anchor or "cursor", x or 0, y or 0)
+local function ShowDropdown(menuTable)
+  if not Minimap._menuFrame then
+    Minimap._menuFrame = CreateFrame("Frame", "KillOnSight_MinimapMenu", UIParent, "UIDropDownMenuTemplate")
   end
+  local f = Minimap._menuFrame
+  UIDropDownMenu_Initialize(f, function(self, level)
+    for _,item in ipairs(menuTable) do
+      local info = UIDropDownMenu_CreateInfo()
+      for k,v in pairs(item) do info[k] = v end
+      UIDropDownMenu_AddButton(info, level)
+    end
+  end, "MENU")
+  ToggleDropDownMenu(1, nil, f, "cursor", 0, 0)
 end
 
 local function ShowDropdown(menuTable)

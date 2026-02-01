@@ -1,5 +1,11 @@
 # KillOnSight – Changelog
 
+## 3.1.0
+### Fixed
+- Removed a global `EasyMenu` shim that conflicted with other addons.
+- Fixed an issue where RestedXP Guide menus were duplicated or replaced by KillOnSight entries.
+- Improved compatibility with addons that rely on Blizzard’s native dropdown menu handling.
+
 ## 3.0.9 (Retail / Midnight 12.0.0)
 
 ### Stability & Crash Fixes
