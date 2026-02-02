@@ -142,6 +142,8 @@ L.TT_GUILD_KOS = "Guild-KoS"
 L.TT_LEVEL_FMT = "Level %s"
 
 L.UI_NEARBY_SOUND = "Nearby list sound"
+L.UI_NEARBY_PING = "Ping on click"
+L.UI_NEARBY_PING_HELP = "When left-clicking a player name in the Nearby list, target the player and ping the minimap at your location. You can also hold the Ping key (default: G) and click a player name to send an in-game ping on that unit, visible to your party or raid members."
 
 
 -- Added in 3.0.x

@@ -702,6 +702,12 @@ local function UpdateScroll(self)
             row:SetAttribute("macrotext1", "/targetexact " .. tname)
             row:SetAttribute("macrotext",  "/targetexact " .. tname)
           end)
+
+          -- Retail: resolve GUID -> unit token for PingableUnitFrameTemplate (hold G + click).
+          if IS_RETAIL and UnitTokenFromGUID and e.guid then
+            local unitToken = UnitTokenFromGUID(e.guid)
+            pcall(function() row:SetAttribute("unit", unitToken or nil) end)
+          end
         end
       end
 
@@ -857,7 +863,13 @@ function Nearby:Create()
   for i=1,20 do
     local b    -- Retail 12.x + Classic/TBC: Spy-style secure button targeting (out of combat) via macro attributes.
     -- Left-click targets using /targetexact (hardware event). Right-click opens the context menu.
-    b = CreateFrame("Button", nil, f, "SecureActionButtonTemplate")
+    -- Retail 10.2.5+: inherit PingableUnitFrameTemplate so holding the ping key (G)
+    -- and clicking a row sends an in-game ping on that unit (visible to group members).
+    local rowTemplate = "SecureActionButtonTemplate"
+    if IS_RETAIL and C_PingSecure then
+      rowTemplate = "SecureActionButtonTemplate,PingableUnitFrameTemplate"
+    end
+    b = CreateFrame("Button", nil, f, rowTemplate)
     b:RegisterForClicks("AnyDown", "AnyUp")
     b:SetAttribute("type1", "macro")
     b:SetAttribute("macrotext1", "/targetexact nil")
@@ -891,6 +903,35 @@ function Nearby:Create()
         selfBtn:SetAttribute("macrotext1", "/targetexact " .. tname)
         selfBtn:SetAttribute("macrotext",  "/targetexact " .. tname)
       end)
+    end)
+
+    -- PostClick: after the secure /targetexact macro fires, ping the minimap
+    -- if the setting is enabled and we successfully targeted the clicked player.
+    b:SetScript("PostClick", function(selfBtn, btn)
+      if btn ~= "LeftButton" then return end
+      local e = selfBtn.entry
+      if not e then return end
+
+      local DB = GetDB()
+      local prof = DB and DB:GetProfile()
+      if not prof or prof.nearbyPingOnClick == false then return end
+
+      -- Verify the target matches the clicked entry before pinging.
+      local tname = e.fullName or e.name or ""
+      if tname == "" then return end
+      tname = tostring(tname):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+
+      local targetName = UnitName and UnitName("target")
+      if not targetName then return end
+      -- Compare short names (strip realm) for cross-realm compatibility.
+      local shortTarget = Ambiguate and Ambiguate(targetName, "short") or targetName
+      local shortClicked = Ambiguate and Ambiguate(tname, "short") or tname
+      if shortTarget:lower() ~= shortClicked:lower() then return end
+
+      -- Ping the minimap at center (player location) to draw attention.
+      if Minimap and Minimap.PingLocation then
+        Minimap:PingLocation(0, 0)
+      end
     end)
 
     b:SetPoint("TOPLEFT", 12, -56 - (i-1)*22)
