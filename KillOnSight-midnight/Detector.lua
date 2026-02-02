@@ -191,6 +191,13 @@ end
 local recentEngagements = {}
 local ENGAGE_WINDOW = 20 -- seconds
 
+local function TrackEngagement(name, classFile, guild, guid)
+  if not IS_RETAIL or not GetTime then return end
+  local ok, k = pcall(string.lower, name)
+  if not ok or not k then return end
+  recentEngagements[k] = { name = name, classFile = classFile, guild = guild, guid = guid, t = GetTime() }
+end
+
 local Detector = {}
 
 -- NAME_PLATE_UNIT_REMOVED does not reliably fire UNIT_AURA/UNIT_FLAGS transitions in all cases.
