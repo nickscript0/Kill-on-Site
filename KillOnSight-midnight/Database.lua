@@ -70,6 +70,7 @@ local DEFAULTS = {
     -- Nearby window is always ultra-minimal (no toggle)
     nearbyMinimal = true,
     nearbyRowIcons = true,
+    nearbyPingOnClick = true,
 -- Stealth detection
 stealthDetectEnabled = true,
 stealthDetectChat = true,
@@ -161,6 +162,7 @@ function DB:Init()
   -- New option defaults (older SavedVariables won't have these)
   if realmDB.profile.nearbySound == nil then realmDB.profile.nearbySound = true end
   if realmDB.profile.disableInGoblinTowns == nil then realmDB.profile.disableInGoblinTowns = false end
+  if realmDB.profile.nearbyPingOnClick == nil then realmDB.profile.nearbyPingOnClick = true end
 
   -- prune very old change log if it grew huge
   local data = realmDB.data

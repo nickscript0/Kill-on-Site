@@ -893,6 +893,35 @@ function Nearby:Create()
       end)
     end)
 
+    -- PostClick: after the secure /targetexact macro fires, ping the minimap
+    -- if the setting is enabled and we successfully targeted the clicked player.
+    b:SetScript("PostClick", function(selfBtn, btn)
+      if btn ~= "LeftButton" then return end
+      local e = selfBtn.entry
+      if not e then return end
+
+      local DB = GetDB()
+      local prof = DB and DB:GetProfile()
+      if not prof or prof.nearbyPingOnClick == false then return end
+
+      -- Verify the target matches the clicked entry before pinging.
+      local tname = e.fullName or e.name or ""
+      if tname == "" then return end
+      tname = tostring(tname):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+
+      local targetName = UnitName and UnitName("target")
+      if not targetName then return end
+      -- Compare short names (strip realm) for cross-realm compatibility.
+      local shortTarget = Ambiguate and Ambiguate(targetName, "short") or targetName
+      local shortClicked = Ambiguate and Ambiguate(tname, "short") or tname
+      if shortTarget:lower() ~= shortClicked:lower() then return end
+
+      -- Ping the minimap at center (player location) to draw attention.
+      if Minimap and Minimap.PingLocation then
+        Minimap:PingLocation(0, 0)
+      end
+    end)
+
     b:SetPoint("TOPLEFT", 12, -56 - (i-1)*22)
     b:SetSize(180, 22)
 

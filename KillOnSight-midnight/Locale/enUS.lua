@@ -142,6 +142,8 @@ L.TT_GUILD_KOS = "Guild-KoS"
 L.TT_LEVEL_FMT = "Level %s"
 
 L.UI_NEARBY_SOUND = "Nearby list sound"
+L.UI_NEARBY_PING = "Ping on click"
+L.UI_NEARBY_PING_HELP = "When left-clicking a player name in the Nearby list, target the player and ping the minimap at your location. This helps draw attention to the targeted enemy."
 
 
 -- Added in 3.0.x
