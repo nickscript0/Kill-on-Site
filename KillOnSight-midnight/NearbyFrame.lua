@@ -702,6 +702,12 @@ local function UpdateScroll(self)
             row:SetAttribute("macrotext1", "/targetexact " .. tname)
             row:SetAttribute("macrotext",  "/targetexact " .. tname)
           end)
+
+          -- Retail: resolve GUID -> unit token for PingableUnitFrameTemplate (hold G + click).
+          if IS_RETAIL and UnitTokenFromGUID and e.guid then
+            local unitToken = UnitTokenFromGUID(e.guid)
+            pcall(function() row:SetAttribute("unit", unitToken or nil) end)
+          end
         end
       end
 
@@ -857,7 +863,13 @@ function Nearby:Create()
   for i=1,20 do
     local b    -- Retail 12.x + Classic/TBC: Spy-style secure button targeting (out of combat) via macro attributes.
     -- Left-click targets using /targetexact (hardware event). Right-click opens the context menu.
-    b = CreateFrame("Button", nil, f, "SecureActionButtonTemplate")
+    -- Retail 10.2.5+: inherit PingableUnitFrameTemplate so holding the ping key (G)
+    -- and clicking a row sends an in-game ping on that unit (visible to group members).
+    local rowTemplate = "SecureActionButtonTemplate"
+    if IS_RETAIL and C_PingSecure then
+      rowTemplate = "SecureActionButtonTemplate,PingableUnitFrameTemplate"
+    end
+    b = CreateFrame("Button", nil, f, rowTemplate)
     b:RegisterForClicks("AnyDown", "AnyUp")
     b:SetAttribute("type1", "macro")
     b:SetAttribute("macrotext1", "/targetexact nil")
