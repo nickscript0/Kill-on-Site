@@ -88,11 +88,28 @@ local INACTIVE_TTL = 30 -- seconds: keep dimmed before removing
 
 local SafeSetShown
 
--- Layout refresh helper (Retail/BG safe): attempt immediately; never wait for PLAYER_REGEN_ENABLED.
+-- Combat lockdown safe layout updates (avoid taint/protected calls like ClearAllPoints in combat)
 function Nearby:QueueLayout()
-  self._pendingLayout = nil
-  if self.ApplyMinimalMode then pcall(function() self:ApplyMinimalMode() end) end
-  if self.Refresh then pcall(function() self:Refresh() end) end
+  self._pendingLayout = true
+  if self._combatEventFrame then return end
+  local ef = CreateFrame("Frame")
+  ef:RegisterEvent("PLAYER_REGEN_ENABLED")
+  ef:SetScript("OnEvent", function()
+    if not Nearby._pendingLayout then return end
+    Nearby._pendingLayout = nil
+    if Nearby._pendingShown ~= nil and Nearby.frame then
+      pcall(function() SafeSetShown(Nearby.frame, Nearby._pendingShown) end)
+      Nearby._pendingShown = nil
+    end
+    -- Apply layout and refresh once combat ends
+    if Nearby.ApplyMinimalMode then
+      pcall(function() Nearby:ApplyMinimalMode() end)
+    end
+    if Nearby.Refresh then
+      pcall(function() Nearby:Refresh() end)
+    end
+  end)
+  self._combatEventFrame = ef
 end
 
 
@@ -295,6 +312,7 @@ end
 
 
 function Nearby:ApplyMinimalMode()
+  if InCombatLockdown and InCombatLockdown() then self:QueueLayout(); return end
   if not self.frame then return end
   local DB = GetDB()
   if not DB then return end
@@ -1185,6 +1203,11 @@ end
 
 function Nearby:Refresh()
   if not self.frame then self:Create() end
+  if InCombatLockdown and InCombatLockdown() then
+    -- Defer refresh & any frame Show/Hide calls until combat ends
+    self:QueueLayout()
+    return
+  end
 
   local DB = GetDB()
   if not DB then return end
