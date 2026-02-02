@@ -6,6 +6,25 @@ local L = KillOnSight_L
 local function GetDB() return _G.KillOnSight_DB end
 local function GetNotifier() return _G.KillOnSight_Notifier end
 
+-- Local EasyMenu replacement (avoids polluting the global namespace).
+local function EasyMenu_Initialize(frame, level, menuList)
+  for i = 1, #menuList do
+    local item = menuList[i]
+    if item.text then
+      item.index = i
+      UIDropDownMenu_AddButton(item, level)
+    end
+  end
+end
+
+local function EasyMenu(menuList, menuFrame, anchor, x, y, displayMode, autoHideDelay)
+  if displayMode == "MENU" then
+    menuFrame.displayMode = displayMode
+  end
+  UIDropDownMenu_Initialize(menuFrame, EasyMenu_Initialize, displayMode, nil, menuList)
+  ToggleDropDownMenu(1, nil, menuFrame, anchor, x, y, menuList, nil, autoHideDelay)
+end
+
 -- Project detection (Retail vs Classic-era). On Retail, players can PvP in "resting" areas (War Mode,
 -- city skirmishes, etc.). Treating IsResting() as a sanctuary signal on Retail would incorrectly
 -- disable Nearby population.
